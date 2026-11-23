@@ -65,6 +65,11 @@
       "chapter": "ch04",
       "date": "2026-11-23",
       "why": "user approved as delivered: PCA/PLS with settings fixed in advance, shuffle check, coefficient caveat, Orange workflow + guide alongside R/Jupyter/Colab"
+    },
+    {
+      "chapter": "ch05",
+      "date": "2026-11-23",
+      "why": "user approved as delivered: slope check (g) before Fieller intervals, hidden-bottle and hypothetical unknown, residual-based limits named apart from ch01 LOD, illustrative 8x3 design, report format; Orange point prediction only"
     }
   ]
 }
