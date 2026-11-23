@@ -101,3 +101,14 @@ Object.assign(TRANSLATIONS.zh, {
 });
 document.querySelector('#stage')?.setAttribute('aria-label', translate('stageLabel'));
 { const pm = document.querySelector('.paused-mark div'); if (pm) pm.textContent = translate('paused'); }
+(() => {
+  const MAP = {"课": "課", "动": "動", "画": "畫", "键": "鍵", "盘": "盤", "题": "題", "暂": "暫", "时": "時", "换": "換", "骤": "驟", "从": "從", "头": "頭", "开": "開", "关": "關", "闭": "閉", "减": "減", "显": "顯", "选": "選", "择": "擇", "圆": "圓", "环": "環", "对": "對", "错": "錯", "间": "間", "数": "數", "轴": "軸", "个": "個", "来": "來", "类": "類", "检": "檢", "后": "後", "继": "繼", "续": "續", "离": "離", "点": "點", "击": "擊", "声": "聲", "无": "無", "将": "將", "约": "約", "钟": "鐘", "随": "隨", "测": "測", "节": "節", "验": "驗", "练": "練", "习": "習", "里": "裏", "调": "調", "为": "爲", "静": "靜", "确": "確", "还": "還", "网": "網", "输": "輸", "这": "這", "样": "樣", "标": "標", "项": "項", "经": "經", "没": "沒", "实": "實", "块": "塊", "属": "屬", "于": "於", "现": "現", "边": "邊", "负": "負", "献": "獻", "签": "籤", "页": "頁"};
+  const RE = new RegExp('[' + Object.keys(MAP).join('') + ']', 'g'), conv = s => s.replace(RE, c => MAP[c]);
+  const fix = root => { if (!root) return; if (root.nodeType === 3) { const t = conv(root.nodeValue); if (t !== root.nodeValue) root.nodeValue = t; return; }
+    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let n; (n = w.nextNode());) { const t = conv(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; }
+    (root.querySelectorAll ? root.querySelectorAll('[aria-label],[title]') : []).forEach(e => ['aria-label', 'title'].forEach(a => {
+      const v = e.getAttribute(a); if (v) { const t = conv(v); if (t !== v) e.setAttribute(a, t); } })); };
+  const run = () => { fix(document.body); new MutationObserver(ms => ms.forEach(m => m.type === 'characterData' ? fix(m.target) : m.addedNodes.forEach(fix))).observe(document.body, { childList: true, subtree: true, characterData: true }); };
+  document.body ? run() : addEventListener('DOMContentLoaded', run);
+})();

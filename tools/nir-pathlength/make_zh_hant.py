@@ -10,6 +10,22 @@ js=("// 由 tools/nir-pathlength/make_zh_hant.py 產生：引擎介面改為繁�
     "Object.assign(TRANSLATIONS.zh, "+json.dumps(out,ensure_ascii=False,indent=0)+");\n"
     "document.querySelector('#stage')?.setAttribute('aria-label', translate('stageLabel'));\n"
     "{ const pm = document.querySelector('.paused-mark div'); if (pm) pm.textContent = translate('paused'); }\n")
+# 引擎在載入時就已畫好封面按鈕、快捷鍵說明等（早於上面的覆寫）：用逐字「簡→繁」對照再轉一次頁面文字，並持續監看之後加入的節點。
+cc1 = OpenCC('s2t'); emap = {}
+for v in pairs.values():
+    for a in v:
+        b = cc1.convert(a)
+        if len(b) == 1 and b != a: emap[a] = b
+emap.update({'钟': '鐘'})
+js += ("(() => {\n  const MAP = " + json.dumps(emap, ensure_ascii=False) + ";\n"
+       "  const RE = new RegExp('[' + Object.keys(MAP).join('') + ']', 'g'), conv = s => s.replace(RE, c => MAP[c]);\n"
+       "  const fix = root => { if (!root) return; if (root.nodeType === 3) { const t = conv(root.nodeValue); if (t !== root.nodeValue) root.nodeValue = t; return; }\n"
+       "    const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);\n"
+       "    for (let n; (n = w.nextNode());) { const t = conv(n.nodeValue); if (t !== n.nodeValue) n.nodeValue = t; }\n"
+       "    (root.querySelectorAll ? root.querySelectorAll('[aria-label],[title]') : []).forEach(e => ['aria-label', 'title'].forEach(a => {\n"
+       "      const v = e.getAttribute(a); if (v) { const t = conv(v); if (t !== v) e.setAttribute(a, t); } })); };\n"
+       "  const run = () => { fix(document.body); new MutationObserver(ms => ms.forEach(m => m.type === 'characterData' ? fix(m.target) : m.addedNodes.forEach(fix))).observe(document.body, { childList: true, subtree: true, characterData: true }); };\n"
+       "  document.body ? run() : addEventListener('DOMContentLoaded', run);\n})();\n")
 open(os.path.join(lib,'zh-hant.js'),'w',encoding='utf-8').write(js); print(len(out),'strings'); print(out['startLesson'],out['aboutMinutes'],out['quickCheck'])
 
 # 封面／目錄（contents.js 的字串在閉包裡，無法覆寫）：產生「簡→繁」逐字對照，在頁面渲染後轉換文字

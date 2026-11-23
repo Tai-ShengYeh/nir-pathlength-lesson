@@ -68,7 +68,7 @@ Orange 就會自己找到資料。我們已實測：把 `exercises/orange/` 與 
 
 ### 步驟 2　分支 A：Select Rows（選取列）→ 20 條原始光譜
 
-- 拖一個 **Select Rows**（Data 類別），從 File 連過來。
+- 拖一個 **Select Rows**（Transform 類別），從 File 連過來。
 - 按 **Add Condition**，設成：`replicate` **equals** `1`。
 - 視窗底部狀態列應顯示輸入 21、輸出 **20**。
 

@@ -1,5 +1,166 @@
 <!doctype html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><title>近紅外光譜：最佳光徑選擇</title>
-<meta http-equiv="refresh" content="0; url=site/nir-pathlength/">
-<link rel="canonical" href="site/nir-pathlength/"></head>
-<body><p><a href="site/nir-pathlength/">前往動畫課程</a></p></body></html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>近紅外光譜課程</title>
+<meta name="description" content="以醋酸的近紅外光譜實測資料，學會選光徑、看參考值、避開波長挑選陷阱，並用 PCA 與 PLS 建模。附 Orange、Python、R 練習與教學包。">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f3eee3; --card: #fffdf7; --ink: #2b2620; --dim: #6f665b; --line: #e3d9c8;
+  --accent: #a4532b; --accent-ink: #fffaf2; --soft: #efe6d8; --chip: #ebe2d3; --ok: #3d7a5a;
+  --shadow: 0 1px 2px rgba(60, 40, 20, .06), 0 8px 24px rgba(60, 40, 20, .06);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #1b1916; --card: #24211d; --ink: #f1ebe1; --dim: #b3a898; --line: #3a352e;
+  --accent: #e08a5a; --accent-ink: #1b1916; --soft: #2d2924; --chip: #34302a; --ok: #7cc39b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+} }
+:root[data-theme="dark"] {
+  --bg: #1b1916; --card: #24211d; --ink: #f1ebe1; --dim: #b3a898; --line: #3a352e;
+  --accent: #e08a5a; --accent-ink: #1b1916; --soft: #2d2924; --chip: #34302a; --ok: #7cc39b;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 17px/1.75 "Noto Sans TC", "Microsoft JhengHei", "PingFang TC", system-ui, sans-serif; }
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+header.hero { padding: 64px 16px 40px; text-align: center; }
+.kicker { display: inline-block; padding: 4px 14px; border-radius: 999px; background: var(--soft); color: var(--accent); font-size: 13px; font-weight: 700; letter-spacing: .14em; }
+h1 { margin: 18px 0 10px; font-size: clamp(30px, 5vw, 46px); line-height: 1.25; font-weight: 900; letter-spacing: .02em; }
+.lede { max-width: 720px; margin: 0 auto; color: var(--dim); font-size: 18px; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+.hero .row { justify-content: center; margin-top: 26px; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 9px 18px; border-radius: 10px; border: 1.5px solid var(--accent); color: var(--accent); background: transparent;
+  font-weight: 700; font-size: 16px; text-decoration: none; line-height: 1.4; transition: background .15s, color .15s; }
+.btn:hover { background: var(--soft); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { border-style: dashed; font-weight: 500; font-size: 15px; padding: 6px 14px; cursor: default; }
+.btn.ghost:hover { background: transparent; }
+h2 { font-size: 24px; margin: 0 0 18px; font-weight: 900; }
+section { margin: 36px 0; }
+.steps { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.step { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow); }
+.step b { display: block; color: var(--accent); font-size: 14px; letter-spacing: .1em; }
+.step p { margin: 4px 0 0; color: var(--dim); font-size: 15px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 22px; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; }
+.card > a.thumb { display: block; aspect-ratio: 16 / 9; background: #1e2422; }
+.card > a.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.body { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+.meta { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 14px; }
+.meta .tags { color: var(--accent); font-weight: 700; letter-spacing: .06em; }
+.meta .mins { color: var(--dim); white-space: nowrap; }
+.card h3 { margin: 0; font-size: 23px; line-height: 1.4; font-weight: 900; }
+.card p.desc { margin: 0; color: var(--dim); font-size: 16px; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { padding: 2px 12px; border-radius: 999px; background: var(--chip); font-size: 14px; color: var(--dim); }
+.extra { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 14px; color: var(--dim); }
+.res { margin-top: auto; background: var(--soft); border-radius: 14px; padding: 14px 16px; }
+.res h4 { margin: 0 0 10px; font-size: 14px; color: var(--dim); letter-spacing: .08em; }
+.res .btn { border-color: var(--line); color: var(--ink); background: var(--card); font-weight: 500; font-size: 15px; padding: 7px 14px; }
+.res .btn:hover { border-color: var(--accent); }
+.note { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 22px; color: var(--dim); font-size: 15px; }
+.note code { background: var(--soft); padding: 1px 6px; border-radius: 6px; font-size: 14px; }
+footer { padding: 30px 16px 50px; color: var(--dim); font-size: 14px; border-top: 1px solid var(--line); margin-top: 48px; }
+@media (max-width: 420px) { .grid { grid-template-columns: 1fr; } .btn { font-size: 15px; padding: 8px 14px; } }
+</style>
+</head>
+<body>
+<header class="hero wrap">
+  <span class="kicker">ORANGE · PYTHON · R</span>
+  <h1>近紅外光譜：醋酸定量與最佳光徑</h1>
+  <p class="lede">用一台 NeoSpectra 實測的醋酸光譜，從「光徑要選多長」一路學到參考值、波長挑選的陷阱，以及 PCA 與 PLS。每章都有配音動畫、隨堂小測驗，以及可以自己跑、自己對答案的練習。</p>
+  <div class="row">
+    <a class="btn primary" href="site/nir-pathlength/">▶ 開始上課</a>
+    <a class="btn" href="https://github.com/Tai-ShengYeh/nir-pathlength-lesson/blob/main/最佳光徑選擇_講義.md">學生講義</a>
+    <a class="btn" href="https://github.com/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/orange/README.md">Orange 練習總覽</a>
+    <a class="btn" id="dl-all" href="packs/nir_all_chapters.zip" download>⬇ 全部教學包</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <h2>怎麼學</h2>
+    <div class="steps">
+      <div class="step"><b>1　看動畫</b><p>每章 7–9 分鐘，有旁白；做完隨堂小測驗再往下。</p></div>
+      <div class="step"><b>2　動手做</b><p>下載教學包，用 R、Jupyter／Colab 或 Orange 重算一次。</p></div>
+      <div class="step"><b>3　對答案</b><p>R 與 Python 練習會自動比對答案，全部 PASS 才算完成。</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>章節</h2>
+    <div class="grid" id="cards"></div>
+  </section>
+
+  <section>
+    <h2>開始之前</h2>
+    <div class="note">
+      教學包解壓縮後請保留資料夾結構（<code>exercises/</code>、<code>data/</code>），練習程式與 Orange 工作流程都是用相對路徑找資料。<br>
+      R 只用內建套件；Python 需要 numpy、pandas、scipy、matplotlib；Colab 版不用安裝，資料已內嵌。<br>
+      Orange 請安裝 <a href="https://orangedatamining.com/download/">Orange Data Mining</a>，再從 Options → Add-ons 加裝 Spectroscopy 外掛（測試版本 3.40.0）。
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  動畫以 <a href="https://github.com/DozenTwelve/Papermorph">Papermorph</a> 製作（MIT），旁白由 Microsoft Edge TTS 產生。原始碼與資料：<a href="https://github.com/Tai-ShengYeh/nir-pathlength-lesson">GitHub</a>。
+</footer>
+
+<script src="portal/packs.js"></script>
+<script>
+'use strict';
+const GH = 'https://github.com/Tai-ShengYeh/nir-pathlength-lesson/blob/main/';
+const CHAPTERS = [
+  { id: 'ch01', no: 1, title: '最佳光徑選擇', mins: 9, tags: ['比爾–朗伯', '二階導數', 'LOD', 'LOOCV'],
+    desc: '0.25 到 5 mm 五種光徑，哪一個最好？從飽和、Savitzky–Golay 二階導數、回歸、偵測極限到留一交叉驗證，一次重新學好基礎。',
+    quiz: 3, checks: 87 },
+  { id: 'ch02', no: 2, title: '參考值與實驗設計', mins: 7, tags: ['滴定', '比例誤差', '實驗設計'],
+    desc: '標示、Atago 酸度計與手動滴定，三種參考值誰可信？用比值分辨誤差，並用模擬比較兩種實驗設計。',
+    quiz: 3, checks: 20 },
+  { id: 'ch03', no: 3, title: '波長挑選的陷阱', mins: 7, tags: ['過度擬合', '打亂標籤', '交叉驗證'],
+    desc: '只有 4 個樣品，從 142 個波長挑 R² 最高的會怎樣？用打亂標籤揭穿假訊號，學會把挑選放進交叉驗證。',
+    quiz: 3, checks: 21 },
+  { id: 'ch04', no: 4, title: 'PCA 與 PLS', mins: 8, tags: ['PCA', 'PLS', 'Orange'],
+    desc: '一次看整段光譜：PCA 找出最大的變化是光徑，PLS 把誤差從 2.18 % 降到 0.32 %，再看係數確認合乎化學。',
+    quiz: 3, checks: 29 },
+];
+const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => v != null && (k === 'text' ? e.textContent = v : e.setAttribute(k, v))); kids.forEach(k => k && e.append(k)); return e; };
+const P = typeof PACKS === 'object' ? PACKS : {};
+if (P.all) document.getElementById('dl-all').textContent = '⬇ 全部教學包 .zip（' + kb(P.all.size) + '）';
+const host = document.getElementById('cards');
+CHAPTERS.forEach(c => {
+  const k = P[c.id] || {}, lesson = 'site/nir-pathlength/' + c.id + '/';
+  const tools = ['Python', 'R'].concat(k.ows ? ['Orange'] : []);
+  const links = el('div', { class: 'row' },
+    el('a', { class: 'btn primary', href: lesson, text: '翻開這一章' }),
+    k.guide ? el('a', { class: 'btn', href: GH + k.guide, text: 'Orange 教學' }) : null,
+    k.colab ? el('a', { class: 'btn', href: k.colab, text: 'Colab 筆記本' }) : null,
+    k.ipynb ? el('a', { class: 'btn', href: k.ipynb, download: '', text: 'Jupyter' }) : null,
+    k.r ? el('a', { class: 'btn', href: k.r, download: '', text: 'R 程式' }) : null);
+  const res = el('div', { class: 'res' }, el('h4', { text: '資源下載' }), el('div', { class: 'row' },
+    k.zip ? el('a', { class: 'btn', href: k.zip, download: '', text: '⬇ 整包教材 .zip（' + kb(k.size) + '）' }) : null,
+    k.ows ? el('a', { class: 'btn', href: k.ows, download: '', text: '⬇ Orange 工作流 .ows' }) : null,
+    el('a', { class: 'btn', href: 'data/spectra_long.csv', download: '', text: '⬇ 資料 .csv' })));
+  host.append(el('article', { class: 'card', id: c.id },
+    el('a', { class: 'thumb', href: lesson, 'aria-label': '開啟第 ' + c.no + ' 章動畫' }, el('img', { src: 'portal/img/' + c.id + '.jpg', alt: '第 ' + c.no + ' 章畫面：' + c.title, loading: 'lazy', width: 800, height: 450 })),
+    el('div', { class: 'body' },
+      el('div', { class: 'meta' }, el('span', { class: 'tags', text: c.tags.join(' · ') }), el('span', { class: 'mins', text: '第 ' + c.no + ' 章 · ' + c.mins + ' 分鐘' })),
+      el('h3', { text: c.title }), el('p', { class: 'desc', text: c.desc }),
+      el('div', { class: 'chips' }, ...tools.map(t => el('span', { class: 'chip', text: t }))),
+      links,
+      el('div', { class: 'extra' }, el('span', { text: '本章另有' }),
+        el('span', { class: 'btn ghost', text: '隨堂小測驗 ' + c.quiz + ' 題' }),
+        el('span', { class: 'btn ghost', text: '自動對答案 ' + c.checks + ' 項' })),
+      res)));
+});
+</script>
+</body>
+</html>
