@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PCA 與 PLS</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/zh-hant.js"></script>
+<script src="../lib/nirdata.js"></script>
+<script src="../lib/nirkit.js"></script>
+<script src="../lib/ch04data.js"></script>
+<script src="audio/zh/timings.js"></script>
+<script>
+'use strict';
+// 第 4 章：PCA 與 PLS（含 Orange 工作流程）。數字全由 tools/nir-pathlength/make_data_ch04.py 算出（lib/ch04data.js），
+// 與 exercises/ch04_pca_pls.* 及 exercises/orange/ch04_pca_pls.ows 一致。設定事先固定，不依 RMSECV 挑選。
+const CHAPTER = { number: 4, title: 'PCA 與 PLS', minutes: 8, language: 'zh' };
+
+const P20 = CH4.pca20, CV4 = CH4.rmsecv;
+const PLSC = '#ff9fb0';                                    // PLS（粉紅）；單一波長沿用金色
+const bandOf = lo => CH4.band_wl.map((w, i) => [w, CH4.coef[i]]).filter(([w]) => lo ? w < 2000 : w > 2000);
+const pct = v => (v * 100).toFixed(0) + ' %';
+
+const BEATS = [
+  ['intro', 'PCA 與 PLS', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, '第 4 章 · 近紅外光譜定量醋酸', { x: 800, y: 320, size: 30, fill: COL.dim, anchor: 'middle' });
+    T(g, 'PCA 與 PLS', { x: 800, y: 440, size: 96, weight: 700, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = T(scene, '一次看整段光譜', { x: 800, y: 560, size: 42, fill: GOLD, anchor: 'middle', o: 0 });
+    show(r, m('sub'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['recap', '只用一個波長？', (m) => {
+    const p = panel(0);
+    nTitle(p, '一個波長，還是整段光譜？');
+    const P = nPlot(p, [150, 170, 900, 400], [1340, 2550], [0, 2.6],
+      { xt: [1400, 1600, 1800, 2000, 2200, 2400], xl: 'nm', yt: [0, .5, 1, 1.5, 2, 2.5], yf: v => String(v), yl: '吸光度（1 mm）', t0: .2 });
+    NIR.A['1'].forEach((s, i) => nCurve(P, WL, s, SAMPC[i], .4 + i * .2, 1, 2.5));
+    [[1480, 1871], [2116, 2284]].forEach(([a, b]) => nBand(P, a, b, OKC, .14, m('all')));
+    const x58 = P.px(2258);
+    const l = path(P.g, `M${x58} ${P.box[1]}V${P.box[1] + P.box[3]}`, { stroke: GOLD, 'stroke-width': 4 }, { o: 0 });
+    show(l, m('one'));
+    nText(p, '2258 nm：73 個裡只用 1 個', 1130, 240, m('one') + .3, { size: 26, fill: GOLD, weight: 700 });
+    nText(p, '綠色：1 mm 可用波段', 1130, 300, m('all'), { size: 24, fill: OKC });
+    nText(p, '1480–1871、2116–2284 nm', 1130, 336, m('all') + .3, { size: 24, fill: OKC });
+    nText(p, 'PCA：主成分分析', 1130, 440, m('tools'), { size: 30, weight: 700 });
+    nText(p, 'PLS：偏最小平方法', 1130, 490, m('tools') + 1.5, { size: 30, weight: 700, fill: PLSC });
+    nText(p, '練習：R · Python · Orange', 1130, 580, m('tools') + 4, { size: 26, fill: COL.dim });
+  }],
+
+  ['pca20', 'PCA：20 條光譜', (m) => {
+    const p = panel(0);
+    nTitle(p, 'PCA：20 條原始光譜（5 光徑 × 4 樣品）');
+    const xr = [Math.min(...P20.pc1) - 1, Math.max(...P20.pc1) + 1], yr = [Math.min(...P20.pc2) - .6, Math.max(...P20.pc2) + .6];
+    const P = nPlot(p, [170, 170, 820, 470], xr, yr, { xt: [], yt: [], xl: 'PC1（' + pct(P20.evr[0]) + '）', yl: 'PC2（' + pct(P20.evr[1]) + '）', t0: m('plot') - .3 });
+    P20.pc1.forEach((x, i) => nDot(P.g, P.px(x), P.py(P20.pc2[i]), 8 + CONC.indexOf(P20.conc[i]) * 4, PATHC[P20.path[i]], m('plot') + .4 + i * .08, { 'fill-opacity': .85 }));
+    nLegend(p, PATHS.map(q => [pstr(q), PATHC[q]]), 1110, 200, m('plot') + 1, 22);
+    nText(p, '點越大，濃度越高', 1110, 400, m('plot') + 1.5, { size: 22, fill: COL.dim });
+    nText(p, 'PC1 佔 ' + pct(P20.evr[0]) + ' 的變異', 1110, 470, m('pc1'), { size: 26, weight: 700 });
+    nText(p, '與光徑 |r| = ' + P20.r_pc1_path.toFixed(2), 1110, 512, m('pc1') + 1.5, { size: 26, fill: GOLD });
+    nText(p, '與濃度 |r| = ' + P20.r_pc1_conc.toFixed(2), 1110, 554, m('conc'), { size: 26, fill: BADC });
+    nText(p, '最大的變化 ≠ 你要的變化', 170, 730, m('lesson') + 2, { size: 30, fill: BADC, weight: 700 });
+  }],
+
+  ['pca1', 'PCA：1 mm 二階導數', (m) => {
+    const p = panel(0);
+    nTitle(p, 'PCA：1 mm、二階導數、可用波段');
+    const s = CH4.pca1.pc1, k = 1000;
+    const P = nPlot(p, [170, 170, 800, 450], [-.5, 8], [-20, 20],
+      { xt: [0, 2, 4, 6, 8], xl: '醋酸 %', yt: [-20, -10, 0, 10, 20], yl: 'PC1 分數（×10⁻³）', t0: m('plot') - .3 });
+    CH4.conc.forEach((c, i) => nDot(P.g, P.px(c), P.py(s[i] * k), 13, SAMPC[i], m('plot') + .5 + i * .3));
+    const f = nFit(CH4.conc, s.map(v => v * k));
+    nCurve(P, [0, 7.45], [f.icpt, f.icpt + f.slope * 7.45], COL.dim, m('line'), 1, 3, { 'stroke-dasharray': '10 8' });
+    nText(p, 'PC1 佔 ' + pct(CH4.pca1.evr[0]) + ' 的變異', 1090, 260, m('plot') + 1, { size: 28, weight: 700 });
+    nText(p, '與濃度 |r| = ' + CH4.pca1.r_pc1_conc.toFixed(3), 1090, 310, m('line') + .5, { size: 28, fill: OKC, weight: 700 });
+    nText(p, '光徑固定 + 二階導數', 1090, 430, m('lesson'), { size: 26 });
+    nText(p, '→ 剩下最大的變化就是濃度', 1090, 472, m('lesson') + .6, { size: 26, fill: OKC });
+    nText(p, '（PC 的正負號是任意的）', 1090, 560, m('lesson') + 1.5, { size: 22, fill: COL.dim });
+  }],
+
+  ['q1', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-pca', prompt: ['5 種光徑、4 個樣品共 20 條光譜做 PCA，第一主成分主要反映什麼？'],
+    build: choice([['光徑'], ['醋酸濃度'], ['儀器雜訊']], 0,
+      'PCA 不看濃度，只找變化最大的方向；光徑從 0.25 到 5 mm，造成的變化遠大於濃度。',
+      [null, 'PC1 和濃度的 |r| 只有 0.02；濃度的變化被光徑蓋過了。', '雜訊很小（約 0.0003 AU），不會是最大的變化。']),
+  }], done) }],
+
+  ['pls', 'PLS 與固定設定', (m) => {
+    const p = panel(0);
+    nTitle(p, 'PLS：找「和濃度最相關」的方向');
+    const card = (x, title, sub, c, t0) => {
+      const g = G(p, { o: 0, y: 12 });
+      mk('rect', { x, y: 170, width: 560, height: 130, rx: 16, fill: 'none', stroke: c, 'stroke-width': 3 }, g);
+      T(g, title, { x: x + 30, y: 225, size: 32, weight: 700, fill: c });
+      T(g, sub, { x: x + 30, y: 270, size: 24, fill: COL.dim });
+      tw(g, { o: 1, y: 0 }, t0, .6, out);
+    };
+    card(150, 'PCA', '找變化最大的方向（不看濃度）', COL.chalk, .3);
+    card(890, 'PLS', '找和濃度最相關的方向', PLSC, m('diff'));
+    nText(p, '設定事先決定，不看結果挑（第 3 章的教訓）', 150, 380, m('fixed'), { size: 28, fill: GOLD, weight: 700 });
+    [['二階導數（SG 9 點、二次）', '同第 1 章：消除基線偏移', 's1'],
+     ['波段：1480–1871、2116–2284 nm', '報告的 1 mm 可用波段，共 ' + CH4.n_band + ' 個波長', 's2'],
+     ['不縮放', '每個波長都是同單位的吸光度', 's3'],
+     ['1 個成分', '只有一種成分在變：醋酸取代水', 's4']].forEach(([a, b, mark], i) => {
+      const g = G(p, { x: -16, y: 450 + i * 82, o: 0 });
+      mk('circle', { cx: 170, cy: -10, r: 20, fill: OKC }, g);
+      T(g, '✓', { x: 170, y: -1, size: 24, fill: COL.board, weight: 800, anchor: 'middle' });
+      T(g, a, { x: 210, size: 30, weight: 700 });
+      T(g, b, { x: 760, size: 24, fill: COL.dim });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+
+  ['cv', '交叉驗證比較', (m) => {
+    const p = panel(0);
+    nTitle(p, '留一交叉驗證：RMSECV');
+    const items = [['單一波長\n2258 nm', CV4.band2258, GOLD, 'band'], ['PLS\n1 成分', CV4.pls1, PLSC, 'pls1'],
+                   ['PLS\n2 成分', CV4.pls2, '#c98aa0', 'pls2'], ['原始光譜\nPLS 1 成分', CV4.raw1, BADC, 'raw']];
+    const P = nPlot(p, [170, 180, 900, 440], [-.5, 3.5], [0, 3], { yt: [0, 1, 2, 3], yl: 'RMSECV %', t0: m('band') - .4 });
+    const [, by, , bh] = P.box;
+    items.forEach(([nm, v, c, mark], i) => {
+      nm.split('\n').forEach((s, j) => nText(p, s, P.px(i), by + bh + 34 + j * 30, m(mark), { size: 22, anchor: 'middle', fill: c, weight: 600 }));
+      nBar(P.g, P.px(i), 110, P.py(0), P.py(v), c, m(mark) + .2);
+      nText(p, v.toFixed(2) + ' %', P.px(i), P.py(v) - 12, m(mark) + .8, { size: 26, anchor: 'middle', fill: c, weight: 700 });
+    });
+    nText(p, '單一波長 → PLS：', 1160, 260, m('pls1') + 1, { size: 24, fill: COL.dim });
+    nText(p, '2.18 → 0.32 %', 1160, 304, m('pls1') + 1.4, { size: 32, fill: PLSC, weight: 800 });
+    nText(p, '多 1 個成分：擬合 R²', 1160, 400, m('pls2') + 1, { size: 22, fill: COL.dim });
+    nText(p, CH4.fitR2['1'] + ' → ' + CH4.fitR2['2'] + '，', 1160, 436, m('pls2') + 1.4, { size: 24 });
+    nText(p, '預測卻變差（擬合雜訊）', 1160, 472, m('pls2') + 1.8, { size: 24, fill: '#c98aa0' });
+    nText(p, '不做二階導數：', 1160, 560, m('raw') + 1, { size: 22, fill: COL.dim });
+    nText(p, '基線偏移拖垮結果', 1160, 596, m('raw') + 1.4, { size: 24, fill: BADC });
+  }],
+
+  ['shuffle', '打亂標籤', (m) => {
+    const p = panel(0);
+    nTitle(p, '打亂標籤：同一組固定設定');
+    const S = CH4.shuffle.map(s => ({ v: s.rmsecv, t: s.true })).sort((a, b) => a.v - b.v);
+    const P = nPlot(p, [150, 200, 900, 420], [-.5, 23.5], [0, 7], { yt: [0, 1, 2, 3, 4, 5, 6, 7], yl: 'PLS-1 的 RMSECV %', t0: m('bars') - .4 });
+    nText(p, '24 種排列（由低到高）', 600, 670, m('bars'), { size: 22, fill: COL.dim, anchor: 'middle' });
+    S.forEach((s, i) => nBar(P.g, P.px(i), 26, P.py(0), P.py(s.v), s.t ? GOLD : '#7d8b88', m('bars') + .5 + i * .1, .5));
+    nText(p, '金色：正確的排列', 1150, 240, m('true'), { size: 24, fill: GOLD, weight: 700 });
+    nText(p, CV4.pls1.toFixed(2) + ' %：最低', 1150, 284, m('true') + .4, { size: 30, fill: GOLD, weight: 800 });
+    nText(p, '錯誤排列最好的：' + S[1].v.toFixed(2) + ' %', 1150, 360, m('next'), { size: 24 });
+    nText(p, '大多 > 3.5 %', 1150, 400, m('next') + 1.5, { size: 24, fill: COL.dim });
+    nText(p, '設定事先固定 → 檢查才有意義', 1150, 500, m('lesson'), { size: 24, fill: OKC, weight: 700 });
+    nText(p, '對照第 3 章：事後挑波長，', 1150, 560, m('lesson') + 4, { size: 22, fill: COL.dim });
+    nText(p, '錯的排列也挑得到好結果', 1150, 594, m('lesson') + 4, { size: 22, fill: COL.dim });
+  }],
+
+  ['q2', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-valid', prompt: ['為什麼這次「打亂標籤」的結果，比第 3 章更能說明模型可信？'],
+    build: choice([['設定事先固定，沒有依結果挑選，錯誤的排列就拿不到好成績'], ['因為 PLS 一定比單一波長好'], ['因為這次的樣品比較多']], 0,
+      '挑選會讓錯誤的標籤也找得到好結果；設定固定時，只有正確的標籤做得好。',
+      [null, 'PLS 也可能過度擬合（2 個成分就變差了）。', '樣品還是只有 4 個。']),
+  }], done) }],
+
+  ['coef', '模型用了哪些波長', (m) => {
+    const p = panel(0);
+    nTitle(p, 'PLS 的迴歸係數');
+    const all = CH4.coef, mx = Math.max(...all.map(Math.abs)) * 1.1;
+    const P = nPlot(p, [150, 170, 1000, 440], [1460, 2300], [-mx, mx],
+      { xt: [1500, 1600, 1700, 1800, 1900, 2000, 2100, 2200], xl: 'nm', yt: [0], yf: () => '0', yl: '係數（任意單位）', y0: 0, t0: m('plot') - .4 });
+    [true, false].forEach((lo, k) => { const b = bandOf(lo); nCurve(P, b.map(v => v[0]), b.map(v => v[1]), PLSC, m('plot') + k * 1, 1.2, 3); });
+    nBand(P, 1840, 1872, WATERC, .25, m('plot') + 2);
+    nBand(P, 2240, 2262, GOLD, .25, m('ch'));
+    nText(p, '1854–1871 nm', 1210, 230, m('plot') + 2.3, { size: 26, fill: WATERC, weight: 700 });
+    nText(p, '水帶肩部，約 4 成權重', 1210, 268, m('plot') + 2.6, { size: 24, fill: WATERC });
+    nText(p, '2245–2258 nm', 1210, 340, m('ch') + .3, { size: 26, fill: GOLD, weight: 700 });
+    nText(p, 'C–H 組合帶，約 3 成', 1210, 378, m('ch') + .6, { size: 24, fill: GOLD });
+    nText(p, '水變少 ＋ 醋酸變多', 1210, 470, m('mean'), { size: 28, weight: 700, fill: OKC });
+    nText(p, '水帶對溫度、填樣敏感；', 150, 700, m('caution'), { size: 26, fill: BADC });
+    nText(p, 'n = 4 只是初步結果，要用第 2 章的新實驗驗證', 150, 742, m('caution') + 1.5, { size: 26, fill: BADC });
+  }],
+
+  ['orange', 'Orange 工作流程', (m) => {
+    const p = panel(0);
+    nTitle(p, '在 Orange 裡拖拉完成');
+    const node = (x, y, a, b, c, t0) => {
+      const g = G(p, { o: 0, s: .9 });
+      mk('rect', { x: x - 115, y: y - 46, width: 230, height: 92, rx: 46, fill: 'none', stroke: c, 'stroke-width': 3 }, g);
+      T(g, a, { x, y: y - 4, size: 24, weight: 700, anchor: 'middle', fill: c });
+      T(g, b, { x, y: y + 28, size: 18, anchor: 'middle', fill: COL.dim });
+      tw(g, { o: 1, s: 1 }, t0, .5, back);
+    };
+    const link = (x0, y0, x1, y1, t0) => { const e = path(p, `M${x0} ${y0}L${x1} ${y1}`, { stroke: COL.dim, 'stroke-width': 3 }, { d: 0 }); draw(e, t0, .4); };
+    node(200, 330, 'File', 'spectra_wide_orange.csv', COL.chalk, m('flow'));
+    link(315, 330, 365, 330, m('flow') + .5);
+    node(480, 330, 'Select Rows', 'path_mm = 1', COL.chalk, m('flow') + .8);
+    link(595, 330, 645, 330, m('flow') + 1.8);
+    node(780, 330, 'Preprocess Spectra', 'SG 9/2/2 · Cut', OKC, m('flow') + 2.1);
+    link(895, 315, 1000, 230, m('pca')); node(1120, 220, 'PCA', '不勾 Normalize', COL.chalk, m('pca') + .3);
+    link(1235, 220, 1290, 220, m('pca') + .8); node(1400, 220, 'Scatter Plot', 'PC1 vs PC2', COL.chalk, m('pca') + 1);
+    link(895, 345, 1000, 440, m('pls')); node(1120, 450, 'PLS', '1 成分', PLSC, m('pls') + .3);
+    link(1235, 450, 1290, 450, m('pls') + .8); node(1400, 450, 'Test and Score', 'Leave one out', PLSC, m('pls') + 1);
+    const g = G(p, { o: 0 });
+    mk('rect', { x: 150, y: 580, width: 1300, height: 150, rx: 16, fill: 'none', stroke: BADC, 'stroke-width': 3 }, g);
+    T(g, '⚠ PLS 預設勾選「Scale features and target」', { x: 190, y: 638, size: 30, weight: 700, fill: BADC });
+    T(g, '勾選：RMSE ' + CV4.scaled1.toFixed(2) + ' %　→　取消勾選：' + CV4.pls1.toFixed(2) + ' %', { x: 190, y: 690, size: 28 });
+    show(g, m('trap'));
+  }],
+
+  ['q3', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-orange', prompt: ['在 Orange 用 PLS 得到 RMSE 2.46 %，和講義的 0.32 % 不同。最可能的原因？'],
+    build: choice([['PLS 小工具預設勾選了「Scale features and target」'], ['Orange 的計算有錯'], ['留一法每次的順序不同']], 0,
+      '縮放會把每個波長拉到同樣的變異，平坦、雜訊為主的波長也被放大；取消勾選就和 R、Python 一致。',
+      [null, 'Orange 用的是同樣的演算法；差別在設定。', '留一法每個樣品都會被留下一次，順序不影響 RMSE。']),
+  }], done) }],
+
+  ['wrap', '總結', (m) => {
+    const p = panel(0);
+    nTitle(p, '總結');
+    [['PCA 找變化最大的方向，不一定是你要的。', 'w1'], ['PLS 用整段光譜：2.18 % → 0.32 %。', 'w2'],
+     ['設定事先固定，再用打亂標籤檢查。', 'w3'], ['看係數：模型用的訊號要合乎化學。', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: GOLD }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 38, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+    nText(p, '下一步：用 R、Python 或 Orange 做練習', 800, 740, m('end'), { size: 30, fill: GOLD, anchor: 'middle' });
+  }],
+
+  ['final1', '本章練習', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-ratio', prompt: ['PLS-1 的 RMSECV（0.32 %）約是單一波長（2.18 %）的幾分之一？（取整數）'],
+    build: blanks([{ parts: ['約 1 / ', { box: '7' }], why: '2.18 ÷ 0.32 ≈ 6.8，約 1/7。', hint: '算 2.18 ÷ 0.32。' }]),
+  }, {
+    id: 'p-overfit', prompt: ['2 個成分的擬合 R² 比較高（0.9986），交叉驗證誤差卻變大（0.46 %）。這代表？'],
+    build: choice([['多的成分擬合到雜訊，也就是過度擬合'], ['2 個成分比較好，應該採用'], ['交叉驗證算錯了']], 0,
+      '擬合 R² 用的是同一批資料，成分越多一定越高；交叉驗證才看得出預測新樣品的能力。',
+      [null, '預測誤差變大，代表對新樣品更差。', '留一法每一輪都只用訓練資料建模，算法沒有問題。']),
+  }, {
+    id: 'p-which', prompt: ['下列敘述，屬於 PCA 還是 PLS？'],
+    build: grid([
+      { parts: ['找成分時不看濃度'], ans: ['pca'], why: 'PCA 只看光譜本身的變化。' },
+      { parts: ['找和濃度最相關的方向'], ans: ['pls'], why: 'PLS 同時看光譜與濃度。' },
+      { parts: ['看出 20 條光譜的最大差異來自光徑'], ans: ['pca'], why: '這是 PCA 的第一主成分。' },
+      { parts: ['可以直接預測濃度'], ans: ['pls'], why: 'PLS 是迴歸方法。' },
+    ], [['pca', 'PCA'], ['pls', 'PLS']], { multi: false, text: true }),
+  }], done, '本章練習') }],
+
+  ['finish', '完成', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+boot();
+</script>
+</body>
+</html>

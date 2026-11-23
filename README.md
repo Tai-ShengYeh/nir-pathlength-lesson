@@ -4,14 +4,15 @@
 
 | 教材 | 連結 |
 |---|---|
-| 🎬 動畫課程（第 1 章 9 分鐘、第 2、3 章各 7 分鐘，有旁白與小測驗） | https://tai-shengyeh.github.io/nir-pathlength-lesson/ |
+| 🎬 動畫課程（第 1 章 9 分鐘、第 2、3 章各 7 分鐘、第 4 章 8 分鐘，有旁白與小測驗） | https://tai-shengyeh.github.io/nir-pathlength-lesson/ |
 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/pathlength_exercise_colab.ipynb) | Python 練習，一鍵在 Colab 開啟（資料已內嵌） |
 | Jupyter 練習 | [exercises/pathlength_exercise.ipynb](exercises/pathlength_exercise.ipynb) |
 | R 練習 | [exercises/pathlength_exercise.R](exercises/pathlength_exercise.R)（只用 base R） |
 | 第 2 章練習：參考值與實驗設計 | [R](exercises/ch02_reference_design.R) · [Jupyter](exercises/ch02_reference_design.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch02_reference_design_colab.ipynb) |
 | 第 3 章練習：波長挑選的陷阱 | [R](exercises/ch03_wavelength_pitfall.R) · [Jupyter](exercises/ch03_wavelength_pitfall.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch03_wavelength_pitfall_colab.ipynb) |
+| 第 4 章練習：PCA 與 PLS | [R](exercises/ch04_pca_pls.R) · [Jupyter](exercises/ch04_pca_pls.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch04_pca_pls_colab.ipynb) · [Orange 工作流程](exercises/orange/ch04_pca_pls.ows)（[操作指南](exercises/orange/ch04_orange_guide.md)） |
 | 學生講義 | [最佳光徑選擇_講義.md](最佳光徑選擇_講義.md) |
-| 資料 | [data/spectra_long.csv](data/spectra_long.csv)（21 條光譜 × 142 波長） |
+| 資料 | [data/spectra_long.csv](data/spectra_long.csv)（21 條光譜 × 142 波長）；Orange 用寬表 [data/spectra_wide_orange.csv](data/spectra_wide_orange.csv) |
 
 **結論**：在靈敏度與光徑仍成正比（比爾–朗伯定律成立）的範圍內，取最長的光徑，也就是 1 mm。
 
