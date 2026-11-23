@@ -60,6 +60,11 @@
       "chapter": "ch03",
       "date": "2026-11-23",
       "why": "user approved as delivered: label-shuffle test and selection-inside-LOOCV on real 1 mm data, deterministic numbers shared with exercises"
+    },
+    {
+      "chapter": "ch04",
+      "date": "2026-11-23",
+      "why": "user approved as delivered: PCA/PLS with settings fixed in advance, shuffle check, coefficient caveat, Orange workflow + guide alongside R/Jupyter/Colab"
     }
   ]
 }
