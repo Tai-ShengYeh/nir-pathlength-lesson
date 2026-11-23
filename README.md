@@ -5,7 +5,7 @@
 | 教材 | 連結 |
 |---|---|
 | 🏠 課程首頁（章節卡片、教學包下載） | https://tai-shengyeh.github.io/nir-pathlength-lesson/ |
-| 🎬 動畫課程目錄（第 1 章 9 分鐘、第 2、3 章各 7 分鐘、第 4、5、6 章各 8 分鐘，有旁白與小測驗） | https://tai-shengyeh.github.io/nir-pathlength-lesson/site/nir-pathlength/ |
+| 🎬 動畫課程目錄（第 1 章 9 分鐘、第 2、3 章各 7 分鐘、第 4–7 章各 8 分鐘，有旁白與小測驗） | https://tai-shengyeh.github.io/nir-pathlength-lesson/site/nir-pathlength/ |
 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/pathlength_exercise_colab.ipynb) | Python 練習，一鍵在 Colab 開啟（資料已內嵌） |
 | Jupyter 練習 | [exercises/pathlength_exercise.ipynb](exercises/pathlength_exercise.ipynb) |
 | R 練習 | [exercises/pathlength_exercise.R](exercises/pathlength_exercise.R)（只用 base R） |
@@ -14,7 +14,8 @@
 | 第 4 章練習：PCA 與 PLS | [R](exercises/ch04_pca_pls.R) · [Jupyter](exercises/ch04_pca_pls.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch04_pca_pls_colab.ipynb) · [Orange 工作流程](exercises/orange/ch04_pca_pls.ows)（[操作指南](exercises/orange/ch04_orange_guide.md)） |
 | 第 5 章練習：預測未知樣品與不確定度 | [R](exercises/ch05_prediction_uncertainty.R) · [Jupyter](exercises/ch05_prediction_uncertainty.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch05_prediction_uncertainty_colab.ipynb) · [Orange 工作流程](exercises/orange/ch05_prediction.ows)（[操作指南](exercises/orange/ch05_orange_guide.md)） |
 | 第 6 章練習：資料品質與離群值 | [R](exercises/ch06_data_quality.R) · [Jupyter](exercises/ch06_data_quality.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch06_data_quality_colab.ipynb) · [Orange 工作流程](exercises/orange/ch06_data_quality.ows)（[操作指南](exercises/orange/ch06_orange_guide.md)） |
-| Orange 練習（第 1–6 章） | [exercises/orange/](exercises/orange/README.md)：工作流程 .ows ＋ 圖文操作指南 |
+| 第 7 章練習：設計下一次實驗 | [R](exercises/ch07_experiment_design.R) · [Jupyter](exercises/ch07_experiment_design.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch07_experiment_design_colab.ipynb) · [順序表](exercises/ch07_run_sheet.csv) · [實驗計畫與紀錄表](exercises/ch07_record_sheet.md) · [Orange 工作流程](exercises/orange/ch07_design.ows)（[操作指南](exercises/orange/ch07_orange_guide.md)） |
+| Orange 練習（第 1–7 章） | [exercises/orange/](exercises/orange/README.md)：工作流程 .ows ＋ 圖文操作指南 |
 | 教學包 | [packs/](packs/)：每章一個 .zip，另有全部章節 |
 | 學生講義 | [最佳光徑選擇_講義.md](最佳光徑選擇_講義.md) |
 | 資料 | [data/spectra_long.csv](data/spectra_long.csv)（21 條光譜 × 142 波長）；Orange 用寬表 [data/spectra_wide_orange.csv](data/spectra_wide_orange.csv) |

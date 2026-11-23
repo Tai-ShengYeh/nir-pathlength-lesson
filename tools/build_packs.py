@@ -13,10 +13,12 @@ CH = [  # (編號, 檔名代稱, 標題, 練習檔前綴)
     ('04', 'pca_pls', 'PCA 與 PLS', 'exercises/ch04_pca_pls'),
     ('05', 'prediction', '預測未知樣品與不確定度', 'exercises/ch05_prediction_uncertainty'),
     ('06', 'data_quality', '資料品質與離群值', 'exercises/ch06_data_quality'),
+    ('07', 'experiment_design', '設計下一次實驗', 'exercises/ch07_experiment_design'),
 ]
 
 def files_for(n, prefix):
     fs = [prefix + '.R', prefix + '.ipynb', prefix + '_colab.ipynb']
+    fs += sorted(glob.glob(f'exercises/ch{n}_*.csv') + glob.glob(f'exercises/ch{n}_*.md'))   # 第 7 章的順序表與紀錄表
     fs += sorted(glob.glob(f'exercises/orange/ch{n}_*'))                      # .ows 與操作指南
     fs += sorted(glob.glob(f'exercises/orange/img/ch{n}_*'))                  # 指南截圖
     return [f.replace('\\', '/') for f in fs if os.path.isfile(f)]

@@ -1,0 +1,522 @@
+# -*- coding: utf-8 -*-
+# 第 7 章：由「同一份」cell 定義生成本機版與 Colab 版筆記本。用法：python build_notebooks_ch07.py
+import base64, gzip, os
+import nbformat as nbf
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+DATA_CSV = os.path.join(HERE, '..', 'data', 'spectra_long.csv')
+MD, CODE = 'md', 'code'
+COMMON = []
+
+
+def md(s):
+    COMMON.append((MD, s.strip('\n')))
+
+
+def code(s):
+    COMMON.append((CODE, s.strip('\n')))
+
+
+md(r'''
+# 第 7 章 設計下一次實驗：程式練習
+
+**目標**：這一章不收新資料，而是用現有資料算出「下一次實驗該怎麼設計」的數字：
+現在的校正有多不確定、掃描雜訊多大、預試驗要做幾次、濃度與測量順序怎麼排、課堂怎麼分組，
+最後產生實驗用的**順序表**（`ch07_run_sheet.csv`）與**紀錄表**（`ch07_record_sheet.md`）。
+所有計算都是確定性的，**沒有任何亂數**，每個人都應該算出同一個答案。
+
+| 節 | 內容 |
+|---|---|
+| 0 | 載入資料與二階導數 |
+| 1 | 現在的 1 mm 校正：b、s、s/\|b\| |
+| 2 | 掃描雜訊：0.25 mm 水的兩次重複 |
+| 3 | 預試驗：重複 k 次，σ 的 95 % 範圍 |
+| 4 | 區間寬度敏感度（Fieller 半寬） |
+| 5 | 濃度排法：斜率標準誤與線性檢查 |
+| 6 | 測量順序：漂移下的斜率偏差 |
+| 7 | 課堂分組 |
+| 8 | 產生順序表 |
+
+只用 numpy、pandas、matplotlib、scipy。圖上文字一律用英文（Colab 沒有中文字型）。
+每節結尾有「動手改改看」，並附該節的**自我驗證 PASS/FAIL**（相對誤差 1e-3；答案為 0 時絕對誤差 1e-3）。
+
+**事先固定的設定**：二階導數 Savitzky–Golay 9 點、二次多項式、點距 1，取 2258 nm，乘 10³；
+校正用 1 mm、重複 1 的 4 瓶，反向校正 y = a + b·c；
+參考值：Atago 讀值 (0, 3.32, 4.87, 7.45) %；滴定值 = 0 與 V × 1.07875 × 0.24（V = 8.8、17、44 mL）。
+''')
+
+md(r'''
+## 0. 載入資料與二階導數
+''')
+
+code(r'''
+import numpy as np, pandas as pd
+import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
+from scipy import stats
+
+np.set_printoptions(precision=5, linewidth=130)
+plt.rcParams['figure.dpi'] = 90
+
+# ---- 事先固定的設定 ----
+SG_WIN = 9
+WL0 = 2258
+CONC = [0.0, 3.32, 4.87, 7.45]        # Atago 讀值（%）
+
+# ---- 自我驗證的小工具：每節結尾呼叫 show_checks() ----
+checks = []
+_shown = 0
+def chk(name, got, key):
+    """容許誤差：相對 1e-3；答案是 0 時用絕對 1e-3（答案只有四位有效數字）。"""
+    tol = 1e-3 if key == 0 else 1e-3 * abs(key)
+    checks.append((bool(abs(got - key) <= tol), name, float(got), key))
+
+def show_checks(title):
+    global _shown
+    rows = checks[_shown:]
+    print('\n[自我驗證] %s' % title)
+    print('%-6s | %-52s | %11s | %11s' % ('result', 'item', 'yours', 'key')); print('-' * 88)
+    for ok, name, got, key in rows:
+        print('%-6s | %-52s | %11.5g | %11.5g' % ('PASS' if ok else 'FAIL', name, got, key))
+    print('本節：%d / %d PASS' % (sum(r[0] for r in rows), len(rows)))
+    _shown = len(checks)
+''')
+
+code(r'''
+df = pd.read_csv(DATA_PATH)
+g = (df[(df['replicate'] == 1) & np.isclose(df['path_mm'], 1.0)]
+     .pivot_table(index='acid_pct', columns='wavelength_nm', values='absorbance').sort_index())
+wl = g.columns.values; X1 = g.values; atago = g.index.values.astype(float)       # 4 瓶 x 波長
+D1 = savgol_filter(X1, SG_WIN, 2, deriv=2, axis=1)
+j = int(np.argmin(np.abs(wl - WL0)))
+sig = D1[:, j] * 1e3                                                              # 2258 nm 訊號 y（x 10^-3）
+titr = np.array([0.0] + [v * 1.07875 * 0.24 for v in (8.8, 17, 44)])              # 滴定參考值（%）
+print('1 mm、重複 1：%d 瓶 x %d 個波長；2258 nm 取第 %d 點（%.1f nm）' % (X1.shape[0], X1.shape[1], j, wl[j]))
+print('訊號 y（x1e-3）：', np.round(sig, 4))
+print('Atago 酸度（%）：', atago, '；滴定酸度（%）：', np.round(titr, 3))
+''')
+
+md(r'''
+### 動手改改看（第 0 節）
+1. 為什麼這章所有計算都不用亂數？（提示：讓每個人算出同一個答案，才能互相核對）
+2. 這章用的資料只有 4 瓶、各量 1 次。下面哪些數字會因此「估不準」？
+''')
+
+md(r'''
+## 1. 現在的 1 mm 校正：斜率 b、殘差 s、換算成濃度的 s/|b|
+
+4 點直線的殘差自由度只有 2。s/|b| 是「殘差換算成酸度」的大小：訊號每差 s，濃度就差 s/|b| %。
+''')
+
+code(r'''
+def fit(xs, ys):
+    n = len(xs); b, a = np.polyfit(xs, ys, 1)
+    s = float(np.sqrt(((ys - a - b * xs) ** 2).sum() / (n - 2)))
+    return dict(a=float(a), b=float(b), s=s, s_conc=s / abs(b), sxx=float(((xs - xs.mean()) ** 2).sum()))
+
+fa, ft = fit(atago, sig), fit(titr, sig)
+print('Atago 參考：b = %.4f，s = %.4f，s/|b| = %.4f %%（Sxx = %.2f）' % (fa['b'], fa['s'], fa['s_conc'], fa['sxx']))
+print('滴定參考  ：b = %.4f，s = %.4f，s/|b| = %.4f %%（Sxx = %.2f）' % (ft['b'], ft['s'], ft['s_conc'], ft['sxx']))
+print('兩種參考用的是同一批光譜，s/|b| 卻差很多，所以這個殘差裡混了參考值本身的誤差。')
+
+chk('Atago slope b', fa['b'], -0.9852)
+chk('Atago residual s', fa['s'], 0.9975)
+chk('Atago s/|b| (%)', fa['s_conc'], 1.013)
+chk('titration slope b', ft['b'], -0.6415)
+chk('titration residual s', ft['s'], 0.3927)
+chk('titration s/|b| (%)', ft['s_conc'], 0.612)
+show_checks('第 1 節')
+''')
+
+md(r'''
+### 動手改改看（第 1 節）
+1. 為什麼斜率是負的？（二階導數在吸收峰是負的，酸越多越負）
+2. 4 點直線的殘差自由度只有 2，s 的估計有多可靠？第 3 節會回答。
+''')
+
+md(r'''
+## 2. 掃描雜訊：唯一的一對重複（0.25 mm 水）
+
+兩次掃描的二階導數在 2200–2300 nm 相減，標準差除以 √2 就是單次掃描雜訊。
+1 mm 在 2258 nm 的吸光度較高；**假設透光率的雜訊固定**，吸光度雜訊約放大 10^(A1 − A025) 倍。
+**這只是數量級估計，不是實測。**
+''')
+
+code(r'''
+rep = (df[np.isclose(df['path_mm'], 0.25) & (df['sample'] == 'water')]
+       .pivot_table(index='replicate', columns='wavelength_nm', values='absorbance').sort_index().values)
+Rr = savgol_filter(rep, SG_WIN, 2, deriv=2, axis=1) * 1e3
+win = (wl >= 2200) & (wl <= 2300)
+sd025 = float((Rr[1] - Rr[0])[win].std() / np.sqrt(2))      # 兩次相減的標準差 / sqrt(2) = 單次掃描雜訊
+A1 = float(X1[:, j].mean()); A025 = float(rep[0, j])
+scale = float(10 ** (A1 - A025))
+conc025 = sd025 / abs(fa['b']); conc1_est = sd025 * scale / abs(fa['b'])
+print('0.25 mm 單次掃描雜訊（二階導數 x1e3，2200-2300 nm）：%.4f -> 換算成酸度 %.4f %%' % (sd025, conc025))
+print('2258 nm 的吸光度：1 mm 平均 %.4f、0.25 mm 水 %.4f -> 放大倍數 10^(A1 - A025) = %.3f' % (A1, A025, scale))
+print('粗估 1 mm 的掃描雜訊：約 %.4f %%（數量級估計）；校正殘差 s/|b| 是 %.3f %%（Atago）/ %.3f %%（滴定）' % (conc1_est, fa['s_conc'], ft['s_conc']))
+print('注意：1 mm 的數字是「假設透光率的雜訊固定」才成立的數量級估計，不是實測。')
+print('結論：即使放大了，掃描雜訊（約 0.17 %）仍遠小於校正殘差（0.6-1.0 %）。')
+print('所以現在校正的殘差主要來自別處：裝樣、配製、參考值。這正是下一次實驗要量的。')
+
+chk('scan noise sd (0.25 mm, x1e-3)', sd025, 0.02458)
+chk('scan noise in acid units (0.25 mm, %)', conc025, 0.02495)
+chk('A1: mean 1 mm A at 2258 nm', A1, 1.339)
+chk('A025: 0.25 mm water A at 2258 nm', A025, 0.5122)
+chk('scale = 10^(A1 - A025)', scale, 6.715)
+chk('1 mm scan noise estimate (%)', conc1_est, 0.1675)
+show_checks('第 2 節')
+''')
+
+md(r'''
+### 動手改改看（第 2 節）
+1. 為什麼說 1 mm 的 0.17 % 只是「數量級」？它依賴哪個假設？
+2. 掃描雜訊比校正殘差小很多，這對「同一次裝樣重複掃描很多次」划不划算有什麼意思？
+''')
+
+md(r'''
+## 3. 預試驗：只重複 k 次，標準差 s 有多不可靠
+
+重新填樣 k 次得到標準差 s，真正的 σ 有 95 % 的把握落在 **lo·s 到 hi·s** 之間：
+lo = √((k−1)/χ²₀.₉₇₅)，hi = √((k−1)/χ²₀.₀₂₅)，自由度 k−1。現在的校正殘差自由度只有 2，相當於 k = 3。
+''')
+
+code(r'''
+KS = [2, 3, 5, 10, 20]
+lo = [float(np.sqrt((k - 1) / stats.chi2.ppf(.975, k - 1))) for k in KS]
+hi = [float(np.sqrt((k - 1) / stats.chi2.ppf(.025, k - 1))) for k in KS]
+for k, l, h in zip(KS, lo, hi):
+    print('k = %2d：sigma 在 %.3f s 到 %.3f s 之間' % (k, l, h))
+print('現在的校正殘差自由度只有 2，相當於 k = 3 那一列：真正的 sigma 可能是 s 的 0.52 倍到 6.3 倍。')
+print('預試驗（約 10 次）可以把這個範圍縮到 0.69 倍到 1.8 倍。')
+
+fig, ax = plt.subplots(figsize=(8, 4.6))
+ax.semilogy(KS, hi, 'o-', color='firebrick', label='upper factor (hi)'); ax.semilogy(KS, lo, '^-', color='steelblue', label='lower factor (lo)')
+ax.axhline(1, color='grey', ls=':'); ax.set_ylim(0.3, 40)
+ax.set_xlabel('number of repeats k'); ax.set_ylabel('factor on observed s (95 %)'); ax.set_title('How far true sigma can be from observed s')
+ax.legend(fontsize=8, loc='upper right'); plt.tight_layout(); plt.show()
+
+for i, k in enumerate(KS):
+    chk('pilot k=%d lo' % k, lo[i], [0.4461, 0.5207, 0.5991, 0.6878, 0.7605][i])
+    chk('pilot k=%d hi' % k, hi[i], [31.91, 6.285, 2.874, 1.826, 1.461][i])
+show_checks('第 3 節')
+''')
+
+md(r'''
+### 動手改改看（第 3 節）
+1. 只重複 2 次（k = 2）的 s，真 σ 可能大到 s 的幾倍？這樣的預試驗有用嗎？
+2. k 從 10 加到 20，hi 從 1.83 降到 1.46；再多做 10 次值得嗎？
+''')
+
+md(r'''
+## 4. 區間寬度敏感度：寬度取決於還不知道的誤差
+
+用 Fieller 區間（同第 5 章），未知樣品在 4 %、斜率用滴定校正的 b、令截距 a = 0。
+- (a) 樂觀：8 濃度 × 3 次填樣，24 點彼此獨立。
+- (b) 較實際：同一濃度的 3 次填樣共用配製誤差 s_ref，改用 8 個濃度平均（n = 8，自由度 6）。
+- (c) 多填樣能不能壓過配製誤差？
+''')
+
+code(r'''
+def half_width(s_conc, m, xs, b=ft['b'], x0=4.0):
+    n = len(xs); s = s_conc * abs(b); sxx = ((xs - xs.mean()) ** 2).sum(); t = stats.t.ppf(.975, n - 2)
+    k = t * t * s * s; xb = xs.mean(); y0 = b * x0
+    A = b * b - k / sxx; B = -2 * b * y0 + 2 * k * xb / sxx; C = y0 * y0 - k * (1 / m + 1 / n) - k * xb * xb / sxx
+    r = np.sqrt(B * B - 4 * A * C); lo_, hi_ = sorted([(-B - r) / (2 * A), (-B + r) / (2 * A)])
+    return float((hi_ - lo_) / 2)
+
+X83 = np.repeat(np.arange(8.0), 3); X8 = np.arange(8.0)
+SS = [0.1, 0.2, 0.4, 0.6, 1.0]
+m1 = [half_width(s, 1, X83) for s in SS]; m3 = [half_width(s, 3, X83) for s in SS]
+print('(a) 樂觀：8 濃度 x 3 次填樣，24 點彼此獨立；半寬（%）')
+for s, a1, a3 in zip(SS, m1, m3):
+    print('   填樣誤差 s = %.1f %%：未知樣品量 1 次 -> %.4f；量 3 次 -> %.4f' % (s, a1, a3))
+
+def hw_levels(s_fill, s_ref, m=3):
+    s_pt = np.sqrt(s_ref ** 2 + s_fill ** 2 / 3)               # 濃度平均點的標準差
+    n = 8; b = ft['b']; xs = X8; s = s_pt * abs(b); sxx = ((xs - xs.mean()) ** 2).sum(); t = stats.t.ppf(.975, n - 2)
+    k = t * t * s * s; xb = xs.mean(); y0 = b * 4.0; w_unk = (s_fill ** 2 / m) / s_pt ** 2
+    A = b * b - k / sxx; B = -2 * b * y0 + 2 * k * xb / sxx; C = y0 * y0 - k * (w_unk + 1 / n) - k * xb * xb / sxx
+    r = np.sqrt(B * B - 4 * A * C); lo_, hi_ = sorted([(-B - r) / (2 * A), (-B + r) / (2 * A)])
+    return float((hi_ - lo_) / 2)
+
+SF = 0.4; SR = [0.0, 0.2, 0.4]
+hw = [hw_levels(SF, r) for r in SR]
+print('(b) 較實際：同一濃度的 3 次填樣共用配製誤差 s_ref；填樣誤差 s_fill = 0.4 %')
+for r, h in zip(SR, hw):
+    print('   s_ref = %.1f %% -> 半寬 %.4f %%' % (r, h))
+fills = [1, 3, 6, 12]; pt_sd = [float(np.sqrt(0.4 ** 2 + SF ** 2 / f)) for f in fills]
+print('(c) 填樣次數加倍能不能壓過配製誤差？s_ref = 0.4 %，每個濃度平均 f 次填樣的點標準差：')
+for f, v in zip(fills, pt_sd):
+    print('   f = %2d -> %.4f %%' % (f, v))
+print('多填樣只能壓低填樣那一項；配製誤差 0.4 % 是下限：0.5657 -> 0.4163，越來越慢。')
+
+fig, ax = plt.subplots(figsize=(8, 4.6))
+ax.semilogx(fills, pt_sd, 'o-', color='steelblue'); ax.axhline(0.4, color='firebrick', ls='--'); ax.text(8, 0.41, 'floor = s_ref', color='firebrick', fontsize=8)
+ax.set_ylim(0.3, 0.62); ax.set_xlabel('fills per level f (log scale)'); ax.set_ylabel('point SD (%)')
+ax.set_title('Point SD vs number of fills (s_fill = s_ref = 0.4 %)'); plt.tight_layout(); plt.show()
+
+for i, s in enumerate(SS): chk('half-width m=1, s=%.1f' % s, m1[i], [0.2119, 0.424, 0.8498, 1.279, 2.156][i])
+for i, s in enumerate(SS): chk('half-width m=3, s=%.1f' % s, m3[i], [0.1274, 0.2548, 0.5107, 0.7688, 1.296][i])
+for i, r in enumerate(SR): chk('half-width 8 levels, s_ref=%.1f' % r, hw[i], [0.6033, 0.6307, 0.7086][i])
+for i, f in enumerate(fills): chk('point SD, fills=%d' % f, pt_sd[i], [0.5657, 0.4619, 0.432, 0.4163][i])
+show_checks('第 4 節')
+''')
+
+md(r'''
+### 動手改改看（第 4 節）
+1. 填樣誤差 s 加倍，半寬大約也加倍嗎？（看 m1 那一列）
+2. 未知樣品量 3 次比量 1 次，半寬少多少？為什麼不是少到 1/3？
+3. 配製誤差 s_ref 等於填樣誤差時，半寬比 s_ref = 0 大多少？這提醒我們實驗要先量什麼？
+''')
+
+md(r'''
+## 5. 濃度怎麼排：同樣 24 次測量
+
+四種排法：現在的 4 點各 1 次（`now`）、只量 0 與 7 %（`ends`）、量 0／3.5／7 %（`three`）、8 個濃度各 3 次（`eight`）。
+`se_rel` 是斜率標準誤相對於 `now`；線性檢查（缺適性檢定）需要「濃度數 − 2 > 0」且「純誤差自由度 > 0」。
+''')
+
+code(r'''
+designs = {'now': atago, 'ends': np.repeat([0.0, 7.0], 12), 'three': np.repeat([0.0, 3.5, 7.0], 8), 'eight': X83}
+sxx_d = {k: float(((v - v.mean()) ** 2).sum()) for k, v in designs.items()}
+sp = {k: dict(n=len(v), sxx=sxx_d[k], se_rel=float(np.sqrt(sxx_d['now'] / sxx_d[k])), levels=len(set(v)),
+              lof_df=len(set(v)) - 2, pure_df=len(v) - len(set(v))) for k, v in designs.items()}
+print('%-6s %4s %8s %8s %7s %7s %8s' % ('design', 'n', 'Sxx', 'se_rel', 'levels', 'lof_df', 'pure_df'))
+for k, z in sp.items():
+    print('%-6s %4d %8.2f %8.4f %7d %7d %8d' % (k, z['n'], z['sxx'], z['se_rel'], z['levels'], z['lof_df'], z['pure_df']))
+print('se_rel：斜率標準誤相對於現在 4 點各 1 次（越小越好）。ends 最小，但只有 2 個濃度，沒辦法檢查線性（lof_df = 0）。')
+print('線性檢查（缺適性檢定）需要：濃度數 - 2 > 0，而且純誤差自由度 > 0。eight 兩項都夠（6 與 16）。')
+cx = np.linspace(0, 7, 29); curve = cx - 0.04 * cx * (7 - cx)       # 彎曲的真實反應（示意）
+mid_bias = 0.04 * 3.5 * 3.5
+print('示意：真實反應有彎曲時，中間最多偏 %.2f %%；只量兩端的人完全看不到。' % mid_bias)
+
+fig, axs = plt.subplots(1, 2, figsize=(10, 4.4))
+names = list(sp); se = [sp[k]['se_rel'] for k in names]
+bars = axs[0].bar(names, se, color=['grey', 'steelblue', 'steelblue', 'steelblue']); axs[0].set_ylim(0, 1.15)
+for b_, v, k in zip(bars, se, names):
+    axs[0].text(b_.get_x() + b_.get_width() / 2, v + 0.03, '%.2f' % v, ha='center', fontsize=8)
+    axs[0].text(b_.get_x() + b_.get_width() / 2, 0.05, 'lof df=%d' % sp[k]['lof_df'], ha='center', fontsize=7, color='white')
+axs[0].set_ylabel("slope SE relative to 'now'"); axs[0].set_title('Design vs slope SE')
+axs[1].plot(cx, curve, color='firebrick', lw=2, label='curved truth'); axs[1].plot([0, 7], [0, 7], '--', color='grey', label='straight line through ends')
+axs[1].plot([0, 7], [0, 7], 'ko'); axs[1].set_xlabel('true acid (%)'); axs[1].set_ylabel('response (acid units)')
+axs[1].set_title('Curved response, 2 end points only'); axs[1].legend(fontsize=8)
+plt.tight_layout(); plt.show()
+
+for k in sp:
+    chk('%s: Sxx' % k, sp[k]['sxx'], dict(now=29.09, ends=294, three=196, eight=126)[k])
+    chk('%s: slope SE relative' % k, sp[k]['se_rel'], dict(now=1, ends=0.3146, three=0.3852, eight=0.4805)[k])
+    chk('%s: lack-of-fit df' % k, sp[k]['lof_df'], dict(now=2, ends=0, three=1, eight=6)[k])
+    chk('%s: pure-error df' % k, sp[k]['pure_df'], dict(now=0, ends=22, three=21, eight=16)[k])
+chk('curve: mid-point bias (%)', mid_bias, 0.49)
+show_checks('第 5 節')
+''')
+
+md(r'''
+### 動手改改看（第 5 節）
+1. `ends` 的斜率最準，為什麼我們仍然不選它？
+2. 現在的 4 點（`now`）lof_df = 2、pure_df = 0：能檢查線性嗎？能估純誤差嗎？
+3. 8 濃度 × 3 次的 se_rel = 0.48，只比 `now` 好 2 倍，卻多出 16 個純誤差自由度。這值得嗎？
+''')
+
+md(r'''
+## 6. 測量順序：從低到高 vs 隨機 vs 分區塊
+
+示意：一次 24 個測量，儀器線性漂移，整段相當於 0.5 % 濃度。斜率偏差 = Σ(x − x̄)·漂移 / Sxx。
+- 由低到高排：漂移與濃度同方向上升，變成系統性的斜率偏差。
+- 完全隨機排列：平均為 0，標準差 = √(S_dd / ((n−1)·S_xx))（公式，不用亂數）。
+- 分 3 區塊、每塊 8 個濃度各一次、塊內隨機：塊和塊之間的漂移被抵銷，只剩塊內的部分。
+- 範例順序：每塊 8 個濃度的一種排法（拉丁方式輪替，任何人都能照抄）。
+''')
+
+code(r'''
+n = 24; drift_total = 0.5; dr = drift_total * np.arange(n) / (n - 1)
+Sxx = float(((X83 - X83.mean()) ** 2).sum()); Sdd = float(((dr - dr.mean()) ** 2).sum())
+asc = np.sort(X83); asc_bias = float(((asc - asc.mean()) * dr).sum() / Sxx * 100)
+rand_sd = float(np.sqrt(Sdd / ((n - 1) * Sxx)) * 100)
+blk = [dr[i * 8:(i + 1) * 8] for i in range(3)]; sxx_b = float(((X8 - X8.mean()) ** 2).sum())
+block_sd = float(np.sqrt(sum(sxx_b * ((b_ - b_.mean()) ** 2).sum() / 7 for b_ in blk)) / Sxx * 100)
+base = [3, 6, 0, 5, 2, 7, 1, 4]
+example = [base[(i + 3 * b_) % 8] for b_ in range(3) for i in range(8)]
+example_bias = float(((np.array(example) - 3.5) * dr).sum() / Sxx * 100)
+print('由低到高排：斜率偏差 = %.3f %%（系統性偏差，每次都一樣）' % asc_bias)
+print('完全隨機排：偏差平均為 0、標準差 = %.3f %%（95 %%：+/- %.3f %%）' % (rand_sd, 1.96 * rand_sd))
+print('分 3 區塊（每塊 8 個濃度各 1 次、塊內隨機）：標準差 = %.4f %%（95 %%：+/- %.4f %%）' % (block_sd, 1.96 * block_sd))
+print('範例順序（3 區塊，每塊 8 濃度，拉丁方式輪替，不靠亂數）：')
+for b_ in range(3):
+    print('   區塊 %d：%s' % (b_ + 1, ' '.join(str(v) for v in example[b_ * 8:b_ * 8 + 8])))
+print('這個範例順序在上述漂移下的斜率偏差 = %.4f %%' % example_bias)
+print('結論：由低到高排會把漂移變成斜率誤差；分區塊把漂移抵銷掉大部分；範例順序的偏差只有 0.069 %。')
+
+fig, ax = plt.subplots(figsize=(8, 4.8))
+v = [asc_bias, 1.96 * rand_sd, 1.96 * block_sd, abs(example_bias)]
+bars = ax.bar(['low to high\n(bias)', 'random\n(95 % range)', '3 blocks\n(95 % range)', 'example order\n(|bias|)'], v,
+              color=['firebrick', 'grey', 'steelblue', 'darkorange'])
+for b_, val in zip(bars, v): ax.text(b_.get_x() + b_.get_width() / 2, val + 0.1, '%.2f' % val, ha='center', fontsize=8)
+ax.set_ylim(0, 7.5); ax.set_ylabel('slope error (% acid)'); ax.set_title('Effect of run order under drift (0.5 % over 24 runs)')
+plt.tight_layout(); plt.show()
+
+chk('ascending order: slope bias (%)', asc_bias, 6.522)
+chk('random order: sd (%)', rand_sd, 1.369)
+chk('random order: 95 % range (%)', 1.96 * rand_sd, 2.684)
+chk('3 blocks: sd (%)', block_sd, 0.4744)
+chk('3 blocks: 95 % range (%)', 1.96 * block_sd, 0.9298)
+chk('example order: slope bias (%)', example_bias, 0.06901)
+chk('example order: mismatches with reference list', sum(a != b for a, b in zip(example, [3, 6, 0, 5, 2, 7, 1, 4, 5, 2, 7, 1, 4, 3, 6, 0, 1, 4, 3, 6, 0, 5, 2, 7])), 0)
+show_checks('第 6 節')
+''')
+
+md(r'''
+### 動手改改看（第 6 節）
+1. 由低到高排，漂移 0.5 % 就產生 6.5 % 的斜率偏差，為什麼這麼大？（提示：漂移和濃度同方向上升）
+2. 完全隨機的偏差平均是 0，為什麼還是不如分區塊？
+3. 把 `base` 換成另一種排法，`example_bias` 會變多少？
+''')
+
+md(r'''
+## 7. 課堂分組：8 組，每組 4 個濃度
+
+用位移 (0, 1, 3, 6) mod 8：每個濃度剛好 4 組做，每組有高有低。
+''')
+
+code(r'''
+groups = [sorted({(gi + o) % 8 for o in (0, 1, 3, 6)}) for gi in range(8)]
+per_level = [sum(lv in gr for gr in groups) for lv in range(8)]
+for gi, gr in enumerate(groups):
+    print('第 %d 組：濃度 %s %%' % (gi + 1, ', '.join(str(v) for v in gr)))
+print('每個濃度剛好 4 組做；每組都有高有低（位移 0, 1, 3, 6）。全班合起來等於 8 濃度 x 4 次。')
+
+ref_groups = [[0, 1, 3, 6], [1, 2, 4, 7], [0, 2, 3, 5], [1, 3, 4, 6], [2, 4, 5, 7], [0, 3, 5, 6], [1, 4, 6, 7], [0, 2, 5, 7]]
+chk('groups: mismatches with reference', sum(a != b for a, b in zip(groups, ref_groups)), 0)
+chk('per-level group counts: mismatches with 4', sum(c != 4 for c in per_level), 0)
+show_checks('第 7 節')
+''')
+
+md(r'''
+### 動手改改看（第 7 節）
+1. 如果有 6 組，要怎麼改位移讓每個濃度仍然被做到相同次數？
+2. 為什麼每組都要有低有高，而不是第 1 組做 0–3、第 2 組做 4–7？
+''')
+
+md(r'''
+## 8. 產生順序表與紀錄表
+
+`ch07_run_sheet.csv`（UTF-8 含 BOM，Excel 可直接開）共 37 列：
+- **預試驗 13 列**：同一瓶約 4 % 的醋重新填樣 10 次（填樣 1–10、掃描 1），再對同一次填樣連續掃描 3 次（填樣 1、掃描 1–3）。
+- **主實驗 24 列**：8 濃度 × 3 區塊，依第 6 節的範例順序；「第幾次填樣」＝該濃度第幾次出現。
+
+日期、操作者、光徑、瓶號、溫度、檔名、備註 7 欄留白，實驗時手填。列印版的計畫與檢查表見 `ch07_record_sheet.md`。
+''')
+
+code(r'''
+import csv
+cols = ['階段', '區塊', '順序', '濃度_pct', '第幾次填樣', '第幾次掃描', '日期', '操作者', '光徑_mm', '瓶號', '溫度_C', '檔名', '備註']
+blank = [''] * 7
+rows = [['預試驗', '預試驗', i + 1, 4, f, s] + blank
+        for i, (f, s) in enumerate(list(zip(range(1, 11), [1] * 10)) + [(1, 1), (1, 2), (1, 3)])]
+seen = {}
+for i, lv in enumerate(example):
+    seen[lv] = seen.get(lv, 0) + 1
+    rows.append(['主實驗', i // 8 + 1, i + 1, lv, seen[lv], 1] + blank)
+with open('ch07_run_sheet.csv', 'w', encoding='utf-8-sig', newline='') as fh:
+    w = csv.writer(fh, lineterminator='\n'); w.writerow(cols); w.writerows(rows)
+rs = pd.read_csv('ch07_run_sheet.csv', encoding='utf-8-sig')
+print('已寫出 ch07_run_sheet.csv：%d 列（預試驗 13 + 主實驗 24），%d 欄' % (len(rs), rs.shape[1]))
+print(rs.head(15).to_string())
+
+chk('run sheet: number of rows', len(rs), 37)
+chk('run sheet: pilot rows', int((rs['階段'] == '預試驗').sum()), 13)
+chk('run sheet: main rows', int((rs['階段'] == '主實驗').sum()), 24)
+chk('run sheet: main levels mismatch with example order', int((rs.loc[rs['階段'] == '主實驗', '濃度_pct'].values != np.array(example)).sum()), 0)
+show_checks('第 8 節')
+''')
+
+md(r'''
+### 動手改改看（第 8 節）
+1. 用 Excel 開 `ch07_run_sheet.csv`，中文有亂碼嗎？（檔案含 BOM，應該不會）
+2. 預試驗為什麼要同時有「重新填樣 10 次」與「同一次填樣掃描 3 次」？兩者分別量到什麼誤差？
+3. 主實驗第 k 區塊的「第幾次填樣」等於 k，為什麼？
+''')
+
+code(r'''
+print('全部自我驗證：%d / %d PASS' % (sum(c[0] for c in checks), len(checks)))
+for c in checks:
+    if not c[0]:
+        print('FAIL:', c[1], c[2], c[3])
+''')
+
+md(r'''
+### 總結
+1. 現在的 1 mm 校正：殘差換算成酸度是 1.01 %（Atago）/ 0.61 %（滴定），自由度只有 2。
+2. 掃描雜訊很小（0.25 mm 約 0.025 %，1 mm 粗估 0.17 %），殘差主要來自裝樣、配製與參考值。
+3. 預試驗重複 10 次，真正的 σ 在 0.69–1.83 倍 s 之間；只重複 3 次是 0.52–6.3 倍。
+4. 區間半寬隨填樣誤差成比例變大；配製誤差是填樣次數壓不掉的下限。
+5. 同樣 24 次測量：8 濃度 × 3 次可以做線性檢查（lof_df 6、pure_df 16）；只量兩端看不到彎曲。
+6. 測量順序：由低到高偏 6.5 %，隨機 ±2.7 %，分 3 區塊 ±0.93 %，範例順序只偏 0.069 %。
+7. 課堂 8 組各做 4 個濃度，每個濃度剛好 4 組。
+8. 已產生順序表（37 列）；紀錄表見 `ch07_record_sheet.md`。
+''')
+
+
+def local_head():
+    return [
+        (MD, '> **本機 Jupyter 版**：請在 `teaching/exercises/` 目錄下開啟，資料讀自 `../data/spectra_long.csv`。\n'
+             '> 需要套件：numpy、pandas、matplotlib、scipy。Colab 請改開 `ch07_experiment_design_colab.ipynb`。'),
+        (CODE, "DATA_PATH = '../data/spectra_long.csv'   # 本機版：讀上一層 data 資料夾"),
+    ]
+
+
+def colab_head():
+    with open(DATA_CSV, 'rb') as fh:
+        raw = fh.read()
+    b64 = base64.b64encode(gzip.compress(raw, 9, mtime=0)).decode('ascii')
+    wrapped = '\n'.join(b64[i:i + 100] for i in range(0, len(b64), 100))
+    embed = (
+        "# 資料內嵌：把 spectra_long.csv 以 gzip + base64 存成字串，執行時解出成檔案\n"
+        "import base64, gzip\n"
+        "DATA_B64 = \"\"\"\n" + wrapped + "\n\"\"\"\n"
+        "with open('spectra_long.csv', 'wb') as _f:\n"
+        "    _f.write(gzip.decompress(base64.b64decode(DATA_B64)))\n"
+        "DATA_PATH = 'spectra_long.csv'\n"
+        "print('已解出 spectra_long.csv：', len(gzip.decompress(base64.b64decode(DATA_B64))), 'bytes')"
+    )
+    upload = (
+        "# 【可選】想改用自己上傳的 spectra_long.csv，執行這一格並選檔；非 Colab 環境會自動略過。\n"
+        "try:\n"
+        "    from google.colab import files\n"
+        "    _up = files.upload()\n"
+        "    if 'spectra_long.csv' in _up:\n"
+        "        DATA_PATH = 'spectra_long.csv'\n"
+        "        print('已改用你上傳的 spectra_long.csv')\n"
+        "    else:\n"
+        "        print('沒有上傳 spectra_long.csv，繼續使用內嵌資料')\n"
+        "except Exception as _e:\n"
+        "    print('略過上傳（非 Colab 環境或未選檔）：', type(_e).__name__)"
+    )
+    return [
+        (MD, '> **Google Colab 版**\n>\n'
+             '> 1. 開啟 [colab.research.google.com](https://colab.research.google.com)。\n'
+             '> 2. 選單「**檔案 → 上傳筆記本**」，選擇 `ch07_experiment_design_colab.ipynb`。\n'
+             '> 3. 依序執行每一格。\n>\n'
+             '> 資料已**內嵌**在筆記本中，下一格會自動解出 `spectra_long.csv`。Colab 已內建所需套件。\n'
+             '> 第 8 節產生的 `ch07_run_sheet.csv` 會存在 Colab 的檔案面板（左側資料夾圖示），請自行下載。'),
+        (CODE, embed),
+        (MD, '若想改用自己上傳的檔案，可執行下面這一格（可選）。'),
+        (CODE, upload),
+    ]
+
+
+def build(name, head):
+    nb = nbf.v4.new_notebook()
+    cells = [COMMON[0]] + head + COMMON[1:]
+    nb['cells'] = [nbf.v4.new_markdown_cell(s) if k == MD else nbf.v4.new_code_cell(s) for k, s in cells]
+    nb['metadata'] = {'kernelspec': {'display_name': 'Python 3', 'language': 'python', 'name': 'python3'},
+                      'language_info': {'name': 'python'}}
+    path = os.path.join(HERE, name)
+    with open(path, 'w', encoding='utf-8') as fh:
+        nbf.write(nb, fh)
+    print('wrote', path, '(%d cells)' % len(cells))
+
+
+if __name__ == '__main__':
+    build('ch07_experiment_design.ipynb', local_head())
+    build('ch07_experiment_design_colab.ipynb', colab_head())

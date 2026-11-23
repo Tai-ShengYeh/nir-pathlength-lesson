@@ -54,8 +54,17 @@ const PACKS = {
   "ipynb": "exercises/ch06_data_quality.ipynb",
   "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch06_data_quality_colab.ipynb"
  },
+ "ch07": {
+  "zip": "packs/nir_ch07_experiment_design.zip",
+  "size": 401165,
+  "ows": "exercises/orange/ch07_design.ows",
+  "guide": "exercises/orange/ch07_orange_guide.md",
+  "r": "exercises/ch07_experiment_design.R",
+  "ipynb": "exercises/ch07_experiment_design.ipynb",
+  "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch07_experiment_design_colab.ipynb"
+ },
  "all": {
   "zip": "packs/nir_all_chapters.zip",
-  "size": 3465905
+  "size": 3828739
  }
 };

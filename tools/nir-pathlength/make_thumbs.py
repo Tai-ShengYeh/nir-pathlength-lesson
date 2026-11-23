@@ -3,7 +3,7 @@
 import asyncio, io, os
 from playwright.async_api import async_playwright
 from PIL import Image
-SHOTS = {'ch01': 'saturate', 'ch02': 'compare', 'ch03': 'shuffle', 'ch04': 'coef', 'ch05': 'four', 'ch06': 'check'}
+SHOTS = {'ch01': 'saturate', 'ch02': 'compare', 'ch03': 'shuffle', 'ch04': 'coef', 'ch05': 'four', 'ch06': 'check', 'ch07': 'order'}
 OUT = os.path.join(os.path.dirname(__file__), '..', '..', 'portal', 'img')
 async def main():
     async with async_playwright() as p:
