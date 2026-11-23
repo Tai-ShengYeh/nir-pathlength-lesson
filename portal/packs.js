@@ -38,7 +38,7 @@ const PACKS = {
  },
  "ch05": {
   "zip": "packs/nir_ch05_prediction.zip",
-  "size": 210252,
+  "size": 210299,
   "ows": "exercises/orange/ch05_prediction.ows",
   "guide": "exercises/orange/ch05_orange_guide.md",
   "r": "exercises/ch05_prediction_uncertainty.R",
@@ -63,8 +63,17 @@ const PACKS = {
   "ipynb": "exercises/ch07_experiment_design.ipynb",
   "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch07_experiment_design_colab.ipynb"
  },
+ "ch08": {
+  "zip": "packs/nir_ch08_reference_methods.zip",
+  "size": 370369,
+  "ows": "exercises/orange/ch08_references.ows",
+  "guide": "exercises/orange/ch08_orange_guide.md",
+  "r": "exercises/ch08_reference_methods.R",
+  "ipynb": "exercises/ch08_reference_methods.ipynb",
+  "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch08_reference_methods_colab.ipynb"
+ },
  "all": {
   "zip": "packs/nir_all_chapters.zip",
-  "size": 3831503
+  "size": 4163468
  }
 };

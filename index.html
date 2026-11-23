@@ -139,6 +139,9 @@ const CHAPTERS = [
   { id: 'ch07', no: 7, title: '設計下一次實驗', mins: 8, tags: ['預試驗', '隨機順序', '盲樣驗證'],
     desc: '現有數據量不出填樣誤差和參考值誤差。先做預試驗，重複做在對的層次，濃度等間隔、順序分區塊打亂，再用盲樣驗證；附順序表與紀錄表。',
     quiz: 3, checks: 74 },
+  { id: 'ch08', no: 8, title: '參考方法的誤差', mins: 7, tags: ['滴定', 'KHP 標定', '誤差預算'],
+    desc: '參考值有多準？拆開滴定的計算式、做誤差預算，看四組參考值為什麼對不上；力價錯了 R² 也看不出來，要用 KHP 標定、三重複。附滴定紀錄表。',
+    quiz: 3, checks: 117 },
 ];
 const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => v != null && (k === 'text' ? e.textContent = v : e.setAttribute(k, v))); kids.forEach(k => k && e.append(k)); return e; };

@@ -1,4 +1,4 @@
-# Orange 練習（第 1–7 章）
+# Orange 練習（第 1–8 章）
 
 用 [Orange Data Mining](https://orangedatamining.com/) 拖拉 widget 完成與 R / Python 練習相同的分析，不必寫程式。每章一個工作流程檔（`.ows`）加一份逐步講義。
 
@@ -24,6 +24,7 @@
 | 5 | [ch05_orange_guide.md](ch05_orange_guide.md) | `ch05_prediction.ows`（12 個 widget） | `data/spectra_wide_orange.csv`、`data/unknown_2258_orange.csv` | 預測未知樣品（**只有點預測**）：藏起 4.87 % 瓶用 3 瓶預測；4 瓶校正預測 y0 = 4.20 × 10⁻³。區間（Fieller）Orange 做不到，請到 R / Python | 3.669（講義 3.671，真值 4.87）；4.891（講義 4.960） |
 | 6 | [ch06_orange_guide.md](ch06_orange_guide.md) | `ch06_data_quality.ows`（20 個 widget） | `data/spectra_wide_orange.csv` | 資料品質與離群值：水帶高度 ÷ 同光徑中位數（±10 % 旗標）、0.25 mm 光譜目視、Outliers / PCA 的陷阱（光徑混在一起）。**沒有 Q 殘差**；積分是梯形法（與講義比值最多差 0.0003） | 旗標 0.25 mm 4.87 % 瓶（0.7725，講義 0.7723）與 0.5 mm 3.32 % 瓶（1.1701，講義 1.17）；Outliers 預設（LOF）抓 **0** 條 |
 | 7 | [ch07_orange_guide.md](ch07_orange_guide.md) | `ch07_design.ows`（11 個 widget） | `exercises/orange/ch07_design.csv`（確定性示意資料，48 列） | 測量順序：同樣 24 次測量，「由低到高」vs「分 3 塊打亂」，在加了示意漂移（整段 0.5 %）的訊號上擬合訊號對濃度的直線。**只有這兩組固定順序的斜率**；隨機排列分布、預試驗與 Fieller 區間寬度請到 R / Python | 斜率 **1.06522**（+6.5 %）vs **1.00069**（+0.07 %），與講義一致 |
+| 8 | [ch08_orange_guide.md](ch08_orange_guide.md) | `ch08_references.ows`（17 個 widget） | `exercises/orange/ch08_references.csv`（確定性資料，4 列） | 參考方法的誤差：Formula 看滴定公式（酸度 = 0.2589 × V）並把標示 / Atago 與滴定的差換成 mL（與約 0.05 mL 的讀數不確定度比）；NIR 訊號對 4 種參考值的散佈圖；滴定值整批 × 0.97（示意）後斜率變、R² 不變。**不確定度預算與 Fieller 區間請到 R / Python** | 斜率 **−0.64154** → **−0.66138**（比值 1/0.97），R² 皆 **0.990**；差距 +2.79 / +2.31 / −5.38 mL，與講義一致 |
 
 截圖都在 `img/`（`chNN_orange_*.png`）。
 
@@ -45,7 +46,9 @@
     ├── ch05_prediction.ows
     ├── ch06_data_quality.ows
     ├── ch07_design.ows
-    └── ch07_design.csv
+    ├── ch07_design.csv
+    ├── ch08_references.ows
+    └── ch08_references.csv
 ```
 
 如果 **File** widget 顯示紅色錯誤（找不到檔案），雙擊它重新選資料檔即可。在 Orange 裡**另存**後，資料路徑會變成你電腦上的絕對路徑；要發給別人請用原始的 `.ows`。
@@ -65,7 +68,8 @@
 python tools/nir-pathlength/make_orange_refs.py          # 產生 data/spectra_1mm_refs_orange.csv（第 2 章）
 python tools/nir-pathlength/make_orange_unknown.py       # 產生 data/unknown_2258_orange.csv（第 5 章）
 python exercises/orange/tools/make_ch07_design.py       # 產生 exercises/orange/ch07_design.csv（第 7 章）
-python exercises/orange/tools/build_ch01_ows.py          # 產生 .ows（ch01 – ch07 同理）
+python exercises/orange/tools/make_ch08_references.py   # 產生 exercises/orange/ch08_references.csv（第 8 章）
+python exercises/orange/tools/build_ch01_ows.py          # 產生 .ows（ch01 – ch08 同理）
 python exercises/orange/tools/verify_ch01_ows.py --img exercises/orange/img   # 重新載入、印出數字、存截圖
 ```
 

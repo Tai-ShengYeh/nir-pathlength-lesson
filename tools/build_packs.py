@@ -14,6 +14,7 @@ CH = [  # (編號, 檔名代稱, 標題, 練習檔前綴)
     ('05', 'prediction', '預測未知樣品與不確定度', 'exercises/ch05_prediction_uncertainty'),
     ('06', 'data_quality', '資料品質與離群值', 'exercises/ch06_data_quality'),
     ('07', 'experiment_design', '設計下一次實驗', 'exercises/ch07_experiment_design'),
+    ('08', 'reference_methods', '參考方法的誤差', 'exercises/ch08_reference_methods'),
 ]
 
 def files_for(n, prefix):
