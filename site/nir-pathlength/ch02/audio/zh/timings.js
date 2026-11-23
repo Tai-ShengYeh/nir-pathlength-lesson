@@ -1,6 +1,6 @@
 window.TIMINGS = {
  "intro": {
-  "dur": 13.44,
+  "dur": 13.488,
   "marks": {
    "sub": 3.802
   },
@@ -14,7 +14,7 @@ window.TIMINGS = {
     "\u6821\u6b63\u7dda\u7684\u6a6b\u8ef8\uff0c\u662f\u53c3\u8003\u65b9\u6cd5\u91cf\u5230\u7684\u9178\u5ea6\u3002"
    ],
    [
-    8.32,
+    8.346,
     "\u5982\u679c\u9019\u4e9b\u6578\u5b57\u672c\u8eab\u4e0d\u6e96\uff0c\u5149\u8b5c\u91cf\u5f97\u518d\u597d\u4e5f\u6c92\u6709\u7528\u3002"
    ]
   ]
@@ -203,12 +203,12 @@ window.TIMINGS = {
   ]
  },
  "repro": {
-  "dur": 33.456,
+  "dur": 33.504,
   "marks": {
    "rep": 3.138,
-   "fill": 11.654,
-   "cause": 20.742,
-   "inv": 27.917
+   "fill": 11.706,
+   "cause": 20.794,
+   "inv": 27.969
   },
   "cues": [
    [
@@ -220,15 +220,15 @@ window.TIMINGS = {
     "\u96f6\u9ede\u4e8c\u4e94\u6beb\u7c73\u7684\u6c34\u91cf\u4e86\u5169\u6b21\uff0c\u5169\u6b21\u76f8\u5dee\u7684\u5747\u65b9\u6839\u53ea\u6709\u96f6\u9ede\u96f6\u96f6\u4e00\u4e8c\uff0c\u5100\u5668\u672c\u8eab\u5f88\u7a69\u5b9a\u3002"
    ],
    [
-    11.654,
+    11.706,
     "\u4f46\u540c\u6a23\u5728\u96f6\u9ede\u4e8c\u4e94\u6beb\u7c73\uff0c\u767e\u5206\u4e4b\u56db\u9ede\u516b\u4e03\u90a3\u689d\u5149\u8b5c\uff0c\u6c34\u7684\u5438\u6536\u5e36\u6574\u9ad4\u7e2e\u5c0f\u4e86\u5927\u7d04\u767e\u5206\u4e4b\u5341\u4e94\u3002"
    ],
    [
-    20.742,
+    20.794,
     "\u918b\u7684\u4e3b\u6210\u5206\u662f\u6c34\uff0c\u6c34\u5e36\u4e0d\u8a72\u8b8a\u5c0f\u9019\u9ebc\u591a\uff0c\u6bd4\u8f03\u53ef\u80fd\u662f\u586b\u6a23\u6216\u5149\u5f91\u7684\u8aa4\u5dee\u3002"
    ],
    [
-    27.917,
+    27.969,
     "\u5149\u5f91\u8d8a\u77ed\uff0c\u540c\u6a23\u5927\u5c0f\u7684\u586b\u6a23\u8aa4\u5dee\uff0c\u4f54\u7684\u6bd4\u4f8b\u5c31\u8d8a\u5927\u3002"
    ]
   ]

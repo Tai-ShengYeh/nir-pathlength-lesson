@@ -1,6 +1,6 @@
 window.TIMINGS = {
  "intro": {
-  "dur": 12.024,
+  "dur": 11.976,
   "marks": {
    "sub": 3.854
   },
@@ -20,11 +20,11 @@ window.TIMINGS = {
   ]
  },
  "ruler": {
-  "dur": 28.8,
+  "dur": 28.872,
   "marks": {
-   "two": 4.883,
-   "diff": 12.305,
-   "but": 20.534
+   "two": 4.909,
+   "diff": 12.37,
+   "but": 20.599
   },
   "cues": [
    [
@@ -32,23 +32,23 @@ window.TIMINGS = {
     "\u5224\u65b7\u4e00\u7b46\u6578\u64da\u6709\u6c92\u6709\u554f\u984c\uff0c\u8981\u5148\u6709\u4e00\u628a\u91cf\u5c3a\u3002"
    ],
    [
-    4.883,
+    4.909,
     "\u9019\u4efd\u8cc7\u6599\u88e1\uff0c\u53ea\u6709\u96f6\u9ede\u4e8c\u4e94\u6beb\u7c73\u7684\u6c34\u91cf\u4e86\u5169\u6b21\uff0c\u5169\u689d\u5149\u8b5c\u5e7e\u4e4e\u5b8c\u5168\u91cd\u758a\u3002"
    ],
    [
-    12.305,
+    12.37,
     "\u5dee\u7570\u7684\u5747\u65b9\u6839\u53ea\u6709\u96f6\u9ede\u96f6\u96f6\u4e00\u4e8c\uff0c\u6700\u5927\u4e5f\u4e0d\u5230\u96f6\u9ede\u96f6\u96f6\u4e94\u3002"
    ],
    [
-    18.203,
+    18.268,
     "\u5100\u5668\u672c\u8eab\u5f88\u7a69\u5b9a\u3002"
    ],
    [
-    20.534,
+    20.599,
     "\u53ef\u60dc\u5176\u4ed6\u689d\u4ef6\u90fd\u53ea\u91cf\u4e00\u6b21\u3002"
    ],
    [
-    23.776,
+    23.841,
     "\u91cd\u65b0\u586b\u6a23\u4e00\u6b21\u6703\u5dee\u591a\u5c11\uff0c\u9019\u4efd\u8cc7\u6599\u91cf\u4e0d\u51fa\u4f86\u3002"
    ]
   ]
@@ -161,8 +161,8 @@ window.TIMINGS = {
   "marks": {
    "all": 4.883,
    "top": 14.062,
-   "ours": 21.875,
-   "lesson": 26.732
+   "ours": 21.862,
+   "lesson": 26.719
   },
   "cues": [
    [
@@ -178,19 +178,19 @@ window.TIMINGS = {
     "Q \u6700\u5927\u7684\u524d\u5169\u540d\uff0c\u90fd\u662f\u5169\u6beb\u7c73\u7684\u5149\u8b5c\uff0c\u539f\u56e0\u662f\u98fd\u548c\u9020\u6210\u7684\u975e\u7dda\u6027\uff0c\u4e0d\u662f\u91cf\u932f\u3002"
    ],
    [
-    21.875,
+    21.862,
     "\u6c34\u5e36\u6aa2\u67e5\u6293\u5230\u7684\u5169\u689d\uff0c\u53ea\u6392\u7b2c\u4e09\u548c\u7b2c\u516b\u540d\u3002"
    ],
    [
-    26.732,
+    26.719,
     "\u4e0d\u540c\u5149\u5f91\u6df7\u5728\u4e00\u8d77\uff0c\u6bd4\u5230\u7684\u662f\u5149\u5f91\uff0c\u4e0d\u662f\u54c1\u8cea\u3002"
    ],
    [
-    31.771,
+    31.758,
     "\u8981\u5148\u5206\u7d44\uff0c\u540c\u985e\u76f8\u6bd4\u3002"
    ],
    [
-    34.831,
+    34.818,
     "\u800c\u4e14\u6a23\u54c1\u9019\u9ebc\u5c11\uff0c\u4e5f\u6c92\u6709\u53ef\u9760\u7684\u9580\u6abb\u53ef\u4ee5\u7528\u3002"
    ]
   ]
@@ -289,7 +289,7 @@ window.TIMINGS = {
   ]
  },
  "fixit": {
-  "dur": 34.488,
+  "dur": 34.464,
   "marks": {
    "orig": 5.326,
    "fixed": 9.596,
@@ -328,14 +328,14 @@ window.TIMINGS = {
   ]
  },
  "flow": {
-  "dur": 37.752,
+  "dur": 37.8,
   "marks": {
    "s1": 2.409,
-   "s2": 10.651,
-   "s3": 15.911,
-   "s4": 22.161,
-   "s5": 25.951,
-   "never": 32.617
+   "s2": 10.677,
+   "s3": 15.938,
+   "s4": 22.188,
+   "s5": 25.99,
+   "never": 32.656
   },
   "cues": [
    [
@@ -351,23 +351,23 @@ window.TIMINGS = {
     "\u9580\u6abb\u8981\u4f86\u81ea\u7269\u7406\u6216\u91cf\u5c3a\uff0c\u4e0d\u662f\u4f86\u81ea\u7d50\u679c\u3002"
    ],
    [
-    10.651,
+    10.677,
     "\u7b2c\u4e8c\uff0c\u540c\u985e\u76f8\u6bd4\uff1a\u540c\u4e00\u500b\u5149\u5f91\u3001\u540c\u6a23\u7684\u689d\u4ef6\u3002"
    ],
    [
-    15.911,
+    15.938,
     "\u7b2c\u4e09\uff0c\u627e\u539f\u56e0\uff1a\u586b\u6a23\u3001\u6c23\u6ce1\u3001\u5149\u5f91\uff0c\u9084\u6709\u53c3\u8003\u503c\u3002"
    ],
    [
-    22.161,
+    22.188,
     "\u7b2c\u56db\uff0c\u91cd\u65b0\u586b\u6a23\uff0c\u91cf\u4e09\u6b21\u3002"
    ],
    [
-    25.951,
+    25.99,
     "\u7b2c\u4e94\uff0c\u7d00\u9304\uff1a\u4fdd\u7559\u539f\u59cb\u6578\u64da\uff0c\u5831\u544a\u6709\u548c\u6c92\u6709\u90a3\u4e00\u9ede\u7684\u5169\u7a2e\u7d50\u679c\u3002"
    ],
    [
-    32.617,
+    32.656,
     "\u4e0d\u8981\u56e0\u70ba\u522a\u4e86\u5206\u6578\u6bd4\u8f03\u597d\u5c31\u522a\uff0c\u4e5f\u4e0d\u8981\u6084\u6084\u522a\u6389\u3002"
    ]
   ]
@@ -383,13 +383,13 @@ window.TIMINGS = {
   ]
  },
  "wrap": {
-  "dur": 31.128,
+  "dur": 31.176,
   "marks": {
    "w1": 1.992,
-   "w2": 7.539,
-   "w3": 12.956,
-   "w4": 18.307,
-   "end": 24.036
+   "w2": 7.591,
+   "w3": 13.008,
+   "w4": 18.359,
+   "end": 24.089
   },
   "cues": [
    [
@@ -401,19 +401,19 @@ window.TIMINGS = {
     "\u7b2c\u4e00\uff0c\u5148\u5b9a\u898f\u5247\u518d\u770b\u8cc7\u6599\uff0c\u9580\u6abb\u4f86\u81ea\u7269\u7406\u6216\u91cf\u5c3a\u3002"
    ],
    [
-    7.539,
+    7.591,
     "\u7b2c\u4e8c\uff0c\u540c\u985e\u76f8\u6bd4\uff0c\u4e0d\u540c\u5149\u5f91\u6df7\u5728\u4e00\u8d77\u6703\u6bd4\u932f\u6771\u897f\u3002"
    ],
    [
-    12.956,
+    13.008,
     "\u7b2c\u4e09\uff0c\u5927\u6b98\u5dee\u4e0d\u7b49\u65bc\u58de\u5149\u8b5c\uff0c\u53c3\u8003\u503c\u4e5f\u53ef\u80fd\u932f\u3002"
    ],
    [
-    18.307,
+    18.359,
     "\u7b2c\u56db\uff0c\u4e0d\u9760\u5206\u6578\u522a\u8cc7\u6599\uff0c\u8981\u91cd\u65b0\u586b\u6a23\uff0c\u4e26\u4e14\u7d00\u9304\u3002"
    ],
    [
-    24.036,
+    24.089,
     "\u4e0b\u4e00\u6b21\u5be6\u9a57\uff0c\u6bcf\u500b\u6fc3\u5ea6\u91cd\u65b0\u586b\u6a23\u4e09\u6b21\uff0c\u5c31\u6709\u4e00\u628a\u586b\u6a23\u8aa4\u5dee\u7684\u91cf\u5c3a\u4e86\u3002"
    ]
   ]

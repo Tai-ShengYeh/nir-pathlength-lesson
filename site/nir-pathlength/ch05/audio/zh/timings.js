@@ -1,6 +1,6 @@
 window.TIMINGS = {
  "intro": {
-  "dur": 9.6,
+  "dur": 9.624,
   "marks": {
    "sub": 4.193
   },
@@ -16,11 +16,11 @@ window.TIMINGS = {
   ]
  },
  "recap": {
-  "dur": 19.968,
+  "dur": 19.92,
   "marks": {
    "line": 2.786,
    "use": 8.854,
-   "q": 16.328
+   "q": 16.302
   },
   "cues": [
    [
@@ -36,7 +36,7 @@ window.TIMINGS = {
     "\u91cf\u4e00\u74f6\u672a\u77e5\u7684\u918b\uff0c\u5f97\u5230\u8a0a\u865f\uff0c\u5f9e\u7e31\u8ef8\u5f80\u53f3\u627e\u5230\u76f4\u7dda\uff0c\u518d\u5f80\u4e0b\u8b80\u51fa\u6fc3\u5ea6\u3002"
    ],
    [
-    16.328,
+    16.302,
     "\u554f\u984c\u662f\uff1a\u9019\u500b\u6578\u5b57\u6709\u591a\u53ef\u9760\uff1f"
    ]
   ]
@@ -198,12 +198,12 @@ window.TIMINGS = {
   ]
  },
  "improve": {
-  "dur": 34.104,
+  "dur": 34.128,
   "marks": {
    "titr": 2.409,
    "design": 12.109,
    "both": 19.427,
-   "caution": 29.258
+   "caution": 29.284
   },
   "cues": [
    [
@@ -227,7 +227,7 @@ window.TIMINGS = {
     "\u5047\u8a2d\u659c\u7387\u548c\u6b98\u5dee\u4e0d\u8b8a\uff0c\u518d\u628a\u672a\u77e5\u6a23\u54c1\u91cf\u4e09\u6b21\uff0c\u5340\u9593\u7d04\u70ba\u4e94\u9ede\u4e09\u5230\u4e03\u9ede\u96f6\uff0c\u4e5f\u5c31\u662f\u6b63\u8ca0\u96f6\u9ede\u516b\u5de6\u53f3\u3002"
    ],
    [
-    29.258,
+    29.284,
     "\u9019\u53ea\u662f\u793a\u610f\uff0c\u5be6\u969b\u8981\u7b49\u65b0\u5be6\u9a57\u7684\u6578\u64da\u4f86\u9a57\u8b49\u3002"
    ]
   ]

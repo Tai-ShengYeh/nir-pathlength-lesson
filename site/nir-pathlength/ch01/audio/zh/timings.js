@@ -29,7 +29,7 @@ window.TIMINGS = {
    "cell": 2.018,
    "paths": 7.331,
    "samples": 14.141,
-   "acid": 19.076
+   "acid": 19.089
   },
   "cues": [
    [
@@ -49,7 +49,7 @@ window.TIMINGS = {
     "\u6bcf\u7a2e\u5149\u5f91\u90fd\u91cf\u56db\u500b\u6a23\u54c1\uff1a\u6c34\uff0c\u4ee5\u53ca\u4e09\u74f6\u918b\u3002"
    ],
    [
-    19.076,
+    19.089,
     "\u9178\u5ea6\u7528Atago\u9178\u5ea6\u8a08\u6e2c\u5f97\uff0c\u5206\u5225\u662f\u767e\u5206\u4e4b\u4e09\u9ede\u4e09\u4e8c\u3001\u56db\u9ede\u516b\u4e03\u548c\u4e03\u9ede\u56db\u4e94\u3002"
    ]
   ]
@@ -270,14 +270,14 @@ window.TIMINGS = {
   ]
  },
  "ratio": {
-  "dur": 36.6,
+  "dur": 36.648,
   "marks": {
    "bars": 3.008,
    "ideal": 6.667,
    "real": 15.586,
-   "break": 21.38,
-   "rule": 27.826,
-   "pick": 34.427
+   "break": 21.432,
+   "rule": 27.878,
+   "pick": 34.479
   },
   "cues": [
    [
@@ -297,26 +297,26 @@ window.TIMINGS = {
     "\u5be6\u969b\u91cf\u5230\u7684\u662f\u4e00\u9ede\u4e5d\u4e09\u3001\u4e09\u9ede\u4e5d\u4e94\uff0c\u975e\u5e38\u63a5\u8fd1\u7406\u60f3\u3002"
    ],
    [
-    21.38,
+    21.432,
     "\u4f46\u662f\u4e8c\u6beb\u7c73\u53ea\u6709\u4e09\u9ede\u4e09\u516b\uff0c\u4e94\u6beb\u7c73\u751a\u81f3\u8b8a\u6210\u8ca0\u7684\uff0c\u5df2\u7d93\u98fd\u548c\u3002"
    ],
    [
-    27.826,
+    27.878,
     "\u898f\u5247\u662f\uff1a\u5728\u9748\u654f\u5ea6\u9084\u8ddf\u5149\u5f91\u6210\u6b63\u6bd4\u7684\u7bc4\u570d\u5167\uff0c\u53d6\u6700\u9577\u7684\u5149\u5f91\u3002"
    ],
    [
-    34.427,
+    34.479,
     "\u7b54\u6848\u662f\u4e00\u6beb\u7c73\u3002"
    ]
   ]
  },
  "lod": {
-  "dur": 41.016,
+  "dur": 40.992,
   "marks": {
    "formula": 2.969,
-   "trap": 12.852,
-   "flat": 25.859,
-   "result": 34.102
+   "trap": 12.826,
+   "flat": 25.833,
+   "result": 34.076
   },
   "cues": [
    [
@@ -332,19 +332,19 @@ window.TIMINGS = {
     "\u96dc\u8a0a\u8d8a\u5c0f\u3001\u659c\u7387\u8d8a\u5927\uff0c\u5c31\u80fd\u91cf\u5230\u8d8a\u4f4e\u7684\u6fc3\u5ea6\u3002"
    ],
    [
-    12.852,
+    12.826,
     "\u4f46\u8981\u5c0f\u5fc3\u96dc\u8a0a\u600e\u9ebc\u4f30\u3002"
    ],
    [
-    15.69,
+    15.664,
     "\u5728\u5438\u6536\u5e36\u65c1\u908a\u4f30\uff0c\u5438\u5149\u5ea6\u8d8a\u9ad8\uff0c\u5149\u8b5c\u8d8a\u5f4e\uff0c\u5f4e\u66f2\u4e5f\u88ab\u7576\u6210\u4e86\u96dc\u8a0a\uff0c\u770b\u8d77\u4f86\u53cd\u800c\u662f\u96f6\u9ede\u4e8c\u4e94\u6beb\u7c73\u6700\u597d\u3002"
    ],
    [
-    25.859,
+    25.833,
     "\u6539\u5728\u5e73\u5766\u3001\u6c92\u6709\u98fd\u548c\u7684\u4e00\u5343\u4e94\u767e\u4e94\u5341\u5230\u4e00\u5343\u516d\u767e\u4e94\u5341\u5948\u7c73\u4f30\uff0c\u96dc\u8a0a\u5e7e\u4e4e\u4e0d\u96a8\u5149\u5f91\u6539\u8b8a\u3002"
    ],
    [
-    34.102,
+    34.076,
     "\u9019\u6a23\u7b97\uff0c\u4e00\u6beb\u7c73\u7684\u5075\u6e2c\u6975\u9650\uff0c\u5927\u7d04\u53ea\u6709\u96f6\u9ede\u4e8c\u4e94\u6beb\u7c73\u7684\u4e8c\u9ede\u516d\u5206\u4e4b\u4e00\u3002"
    ]
   ]
