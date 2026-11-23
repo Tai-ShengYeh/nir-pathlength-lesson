@@ -1,0 +1,553 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>最佳光徑選擇</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/zh-hant.js"></script>
+<script src="../lib/nirdata.js"></script>
+<script src="audio/zh/timings.js"></script>
+<script>
+'use strict';
+// 第 1 章：最佳光徑選擇。數據來自 lib/nirdata.js（由 tools/nir-pathlength/make_data.py 從實測光譜產生）。
+const CHAPTER = { number: 1, title: '最佳光徑選擇', minutes: 9, language: 'zh' };
+
+/* ---------- 顏色：同一顏色在全章代表同一件事 ---------- */
+const PATHS = NIR.paths;                                   // [0.25, 0.5, 1, 2, 5] mm
+const PATHC = { 0.25: '#7ec8e3', 0.5: '#6fd3a0', 1: '#f2c14e', 2: '#f39060', 5: '#e8596b' };   // 光徑
+const SAMPC = ['#a8a8a8', '#c9bcff', '#a28eff', '#7f62ff'];  // 水、3.32、4.87、7.45 %
+const SAMPL = ['水 0%', '3.32%', '4.87%', '7.45%'];
+const GOLD = '#f2c14e', OKC = '#6fd3a0', BADC = '#ff6b6b', WATERC = '#6fa8dc';
+const CONC = NIR.conc, WL = NIR.wl;
+const A_LIM = 1.5;
+const RATIO = [1.00, 1.93, 3.95, 3.38, -0.36];             // 2258 nm 靈敏度比（以 0.25 mm 為 1），與報告一致
+const IDEAL = PATHS.map(p => p / 0.25);
+const pstr = p => String(p) + ' mm';
+const fmt = (v, d = 2) => v.toFixed(d).replace('-', '−');
+
+/* ---------- 由數據計算（與 R / Python 練習同一算法） ---------- */
+const nMaxA = p => WL.map((_, i) => Math.max(...NIR.A[String(p)].map(s => s[i])));
+const nFrac = p => nMaxA(p).filter(a => a < A_LIM).length / WL.length;
+function nSegments(p) {                                    // 4 條光譜皆 A < 1.5 的連續波段
+  const ok = nMaxA(p).map(a => a < A_LIM), out = [];
+  for (let i = 0; i < ok.length; i++) {
+    if (!ok[i]) continue;
+    let j = i; while (j + 1 < ok.length && ok[j + 1]) j++;
+    if (j > i) out.push([WL[i], WL[j]]);
+    i = j;
+  }
+  return out;
+}
+function nFit(xs, ys) {                                    // 最小平方法直線
+  const n = xs.length, mx = xs.reduce((a, b) => a + b) / n, my = ys.reduce((a, b) => a + b) / n;
+  let sxy = 0, sxx = 0; xs.forEach((x, i) => { sxy += (x - mx) * (ys[i] - my); sxx += (x - mx) ** 2; });
+  const slope = sxy / sxx; return { slope, icpt: my - slope * mx };
+}
+const B1 = NIR.band['2258']['1'];                          // 1 mm、2258 nm
+const D2K = B1.d2.map(v => v * 1e3);                       // 二階導數 ×10³
+const FIT1 = nFit(CONC, D2K);
+const R2_1 = (() => { const my = D2K.reduce((a, b) => a + b) / 4; let r = 0, t = 0;
+  D2K.forEach((y, i) => { r += (y - (FIT1.icpt + FIT1.slope * CONC[i])) ** 2; t += (y - my) ** 2; }); return 1 - r / t; })();
+const LOO = CONC.map((c, j) => {                           // 留一交叉驗證
+  const xs = CONC.filter((_, k) => k !== j), ys = D2K.filter((_, k) => k !== j), f = nFit(xs, ys);
+  const pred = (D2K[j] - f.icpt) / f.slope; return { f, pred, err: c - pred };
+});
+const RMSECV = Math.sqrt(LOO.reduce((a, l) => a + l.err ** 2, 0) / 4);
+
+/* ---------- 繪圖小工具（加 n 前綴，避免和引擎的全域名稱衝突） ---------- */
+function nTitle(p, str, t0 = .2) { const e = T(p, str, { x: 110, y: 96, size: 40, weight: 700, o: 0 }); show(e, t0); return e; }
+function nText(p, str, x, y, t0, { size = 28, fill = COL.chalk, anchor = 'start', weight = 500 } = {}) {
+  const e = T(p, str, { x, y, size, fill, anchor, weight, o: 0 }); show(e, t0); return e;
+}
+function nPlot(p, box, xr, yr, o = {}) {
+  const [bx, by, bw, bh] = box;
+  const px = v => bx + (v - xr[0]) / (xr[1] - xr[0]) * bw;
+  const py = v => by + bh - (v - yr[0]) / (yr[1] - yr[0]) * bh;
+  const g = G(p, { o: 0 });
+  const y0 = o.y0 != null ? py(o.y0) : by + bh;
+  path(g, `M${bx} ${by}V${by + bh}`, { stroke: COL.dim, 'stroke-width': 2, fill: 'none' });
+  path(g, `M${bx} ${y0}H${bx + bw}`, { stroke: COL.dim, 'stroke-width': 2, fill: 'none' });
+  (o.xt || []).forEach(v => {
+    path(g, `M${px(v)} ${by + bh}v8`, { stroke: COL.dim, 'stroke-width': 2 });
+    T(g, o.xf ? o.xf(v) : String(v), { x: px(v), y: by + bh + 32, size: 22, fill: COL.dim, anchor: 'middle' });
+  });
+  (o.yt || []).forEach(v => {
+    path(g, `M${bx} ${py(v)}h-8`, { stroke: COL.dim, 'stroke-width': 2 });
+    T(g, o.yf ? o.yf(v) : String(v), { x: bx - 14, y: py(v) + 8, size: 22, fill: COL.dim, anchor: 'end' });
+  });
+  if (o.xl) T(g, o.xl, { x: bx + bw + 12, y: by + bh + 32, size: 22, fill: COL.dim });
+  if (o.yl) T(g, o.yl, { x: bx - 6, y: by - 18, size: 22, fill: COL.dim });
+  show(g, o.t0 ?? .2);
+  return { g, px, py, box };
+}
+const nLineD = (P, xs, ys) => xs.map((x, i) => (i ? 'L' : 'M') + P.px(x).toFixed(1) + ' ' + P.py(ys[i]).toFixed(1)).join('');
+function nCurve(P, xs, ys, color, t0, dur = 1, w = 3, extra = {}) {
+  const e = path(P.g, nLineD(P, xs, ys), { stroke: color, 'stroke-width': w, fill: 'none', 'stroke-linejoin': 'round', ...extra }, { d: 0 });
+  draw(e, t0, dur); return e;
+}
+function nDot(parent, x, y, r, fill, t0, extra = {}) {
+  const e = G(parent, { x, y, s: 0 }); mk('circle', { r, fill, ...extra }, e); tw(e, { s: 1 }, t0, .4, back); return e;
+}
+function nBand(P, x0, x1, fill, o, t0) {                    // 直立色帶（波段標示）
+  const [, by, , bh] = P.box;
+  const e = mk('rect', { x: P.px(x0), y: by, width: Math.max(2, P.px(x1) - P.px(x0)), height: bh, fill }, P.g);
+  put(e, { o: 0 }); tw(e, { o }, t0, .6); return e;
+}
+function nHLine(P, v, color, t0, dash = '10 8') {
+  const [bx, , bw] = P.box;
+  const e = path(P.g, `M${bx} ${P.py(v)}H${bx + bw}`, { stroke: color, 'stroke-width': 3, 'stroke-dasharray': dash }, { o: 0 });
+  show(e, t0); return e;
+}
+function nBar(parent, x, w, yBase, yTop, fill, t0, dur = .8, extra = {}) {   // 由基線長出的長條
+  const e = mk('rect', { x: x - w / 2, y: yBase, width: w, height: 0, fill, ...extra }, parent);
+  const top = Math.min(yBase, yTop), hgt = Math.abs(yBase - yTop);
+  tw(e, { a_y: top, a_height: hgt }, t0, dur, out); return e;
+}
+function nArrowHead(parent, x, y, dir, color, size = 16) {  // dir: 'r' 'd'
+  const d = dir === 'r' ? `M${x} ${y}l${-size} ${-size * .6}v${size * 1.2}z` : `M${x} ${y}l${-size * .6} ${-size}h${size * 1.2}z`;
+  return path(parent, d, { fill: color });
+}
+function nLegend(parent, items, x, y, t0, size = 24) {      // items: [[label, color]]
+  const g = G(parent, { o: 0 });
+  items.forEach(([lab, c], i) => {
+    path(g, `M${x} ${y + i * 34 - 8}h30`, { stroke: c, 'stroke-width': 5 });
+    T(g, lab, { x: x + 42, y: y + i * 34, size, fill: c });
+  });
+  show(g, t0); return g;
+}
+
+/* ---------- 二階導數示範用的玩具光譜 ---------- */
+const TX0 = Array.from({ length: 121 }, (_, i) => -1 + i / 60);
+const toyPeak = (x, h = 1) => h * Math.exp(-((x / .2) ** 2));
+const TOY_BASE = [x => .2, x => .55, x => .2 + .45 * (x + 1) / 2];      // 平、平移、傾斜
+const TOYC = [COL.chalk, '#6fb0ff', '#ff9f6b'];
+const dd = (ys, k) => { let y = ys; for (let n = 0; n < k; n++) y = y.map((v, i) => (y[Math.min(i + 1, y.length - 1)] - y[Math.max(i - 1, 0)]) / (2 / 60)); return y; };
+
+/* ---------- Savitzky–Golay 示範：1 mm、7.45% 在 2258 nm 附近 ---------- */
+const SG_I = B1.i, SG_S = NIR.A['1'][3];
+function sgQuad(k) {                                       // 在 k−4…k+4 擬合 y = a x² + b x + c（x = −4…4）
+  const xs = [-4, -3, -2, -1, 0, 1, 2, 3, 4], ys = xs.map(x => SG_S[k + x]);
+  // 正規方程式（x 對稱，Σx = Σx³ = 0）
+  const n = 9, s2 = 60, s4 = 708;
+  const sy = ys.reduce((a, b) => a + b), sxy = xs.reduce((a, x, i) => a + x * ys[i], 0), sx2y = xs.reduce((a, x, i) => a + x * x * ys[i], 0);
+  const a = (n * sx2y - s2 * sy) / (n * s4 - s2 * s2), c = (sy - a * s2) / n, b = sxy / s2;
+  return { a, b, c };
+}
+const SG_D2R = (() => { const v = []; for (let k = SG_I - 6; k <= SG_I + 6; k++) v.push(2 * sgQuad(k).a);
+  const lo = Math.min(0, ...v), hi = Math.max(...v), pad = (hi - lo) * .15; return [lo - pad, hi + pad]; })();
+const wlAt = j => { const i = Math.floor(j), f = j - i; return WL[i] + (WL[Math.min(i + 1, WL.length - 1)] - WL[i]) * f; };
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', '最佳光徑選擇', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, '第 1 章 · 近紅外光譜定量醋酸', { x: 800, y: 320, size: 30, fill: COL.dim, anchor: 'middle' });
+    T(g, '最佳光徑選擇', { x: 800, y: 440, size: 100, weight: 700, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = T(scene, '光徑越長，就越好嗎？', { x: 800, y: 560, size: 42, fill: GOLD, anchor: 'middle', o: 0 });
+    show(r, m('sub'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['setup', '實驗設計', (m) => {
+    const p = panel(0);
+    nTitle(p, '實驗設計');
+    // 光穿過樣品槽
+    const cg = G(p, { o: 0 });
+    T(cg, '光源', { x: 120, y: 290, size: 26, fill: COL.dim });
+    path(cg, 'M200 280H380', { stroke: GOLD, 'stroke-width': 10 });
+    mk('rect', { x: 380, y: 190, width: 90, height: 180, rx: 6, fill: '#7f62ff', 'fill-opacity': .35, stroke: COL.chalk, 'stroke-width': 3 }, cg);
+    path(cg, 'M470 280H640', { stroke: GOLD, 'stroke-width': 4, 'stroke-opacity': .6 });
+    nArrowHead(cg, 660, 280, 'r', GOLD, 20);
+    mk('rect', { x: 668, y: 240, width: 30, height: 80, rx: 4, fill: COL.dim }, cg);
+    T(cg, '偵測器', { x: 683, y: 360, size: 26, fill: COL.dim, anchor: 'middle' });
+    path(cg, 'M380 400v12H470v-12', { stroke: COL.chalk, 'stroke-width': 3, fill: 'none' });
+    T(cg, '光徑 b', { x: 425, y: 452, size: 32, weight: 700, fill: GOLD, anchor: 'middle' });
+    show(cg, m('cell'));
+    // 五種光徑，按比例畫（40 px = 1 mm）
+    const pg = G(p);
+    let x = 130;
+    PATHS.forEach((pp, i) => {
+      const w = pp * 40, gx = G(pg, { o: 0 });
+      mk('rect', { x, y: 560, width: w, height: 120, rx: 3, fill: PATHC[pp], 'fill-opacity': .55, stroke: PATHC[pp], 'stroke-width': 2 }, gx);
+      T(gx, pstr(pp), { x: x + w / 2, y: 720, size: 22, fill: PATHC[pp], anchor: 'middle', weight: 600 });
+      show(gx, m('paths') + .5 + i * .55);
+      x += w + 105;
+    });
+    nText(p, '（寬度按實際比例）', 130, 530, m('paths') + 3.5, { size: 22, fill: COL.dim });
+    // 四個樣品
+    SAMPL.forEach((lab, i) => {
+      const gx = G(p, { o: 0, y: 20 });
+      mk('rect', { x: 930 + i * 150, y: 170, width: 90, height: 170, rx: 14, fill: SAMPC[i], 'fill-opacity': .45, stroke: SAMPC[i], 'stroke-width': 3 }, gx);
+      T(gx, i ? '醋' : '水', { x: 975 + i * 150, y: 270, size: 34, weight: 700, anchor: 'middle' });
+      tw(gx, { o: 1, y: 0 }, m('samples') + .3 + i * .35, .6, out);
+      const lt = T(p, lab, { x: 975 + i * 150, y: 390, size: 28, fill: SAMPC[i], anchor: 'middle', weight: 600, o: 0 });
+      show(lt, m('acid') + 1 + i * .9);
+    });
+    nText(p, '酸度：Atago 酸度計實測', 1155, 440, m('acid'), { size: 24, fill: COL.dim, anchor: 'middle' });
+    nText(p, '5 種光徑 × 4 個樣品 = 20 條光譜', 1155, 620, m('acid') + 4.5, { size: 30, fill: COL.chalk, anchor: 'middle', weight: 600 });
+  }],
+
+  ['beer', '比爾–朗伯定律', (m) => {
+    const p = panel(0);
+    nTitle(p, '基礎一　比爾–朗伯定律');
+    const f = M(p, ['A = ', 'ε', ' b ', ' c'], { x: 800, y: 230, size: 84, anchor: 'middle', o: 0 });
+    show(f, m('law'));
+    nText(p, 'A：吸光度　　ε：莫耳吸收係數　　b：光徑　　c：濃度', 800, 300, m('law') + 1.5, { size: 28, fill: COL.dim, anchor: 'middle' });
+    // 光徑加倍 → 吸光度加倍
+    const dg = G(p, { o: 0 });
+    mk('rect', { x: 150, y: 400, width: 50, height: 80, fill: '#7f62ff', 'fill-opacity': .45, stroke: COL.chalk, 'stroke-width': 2 }, dg);
+    T(dg, 'b', { x: 175, y: 520, size: 30, anchor: 'middle', font: MATH });
+    mk('rect', { x: 150, y: 560, width: 100, height: 80, fill: '#7f62ff', 'fill-opacity': .45, stroke: COL.chalk, 'stroke-width': 2 }, dg);
+    T(dg, '2b', { x: 200, y: 680, size: 30, anchor: 'middle', font: MATH });
+    show(dg, m('double'));
+    const b1 = mk('rect', { x: 300, y: 420, width: 0, height: 40, fill: GOLD }, p); tw(b1, { a_width: 160 }, m('double') + .6, .7, out);
+    const b2 = mk('rect', { x: 300, y: 580, width: 0, height: 40, fill: GOLD }, p); tw(b2, { a_width: 320 }, m('double') + 1.4, .9, out);
+    nText(p, 'A', 480, 450, m('double') + 1.2, { size: 30, fill: GOLD, weight: 700 });
+    nText(p, '2A', 640, 610, m('double') + 2.2, { size: 30, fill: GOLD, weight: 700 });
+    // 理想直線
+    const P = nPlot(p, [930, 380, 560, 280], [0, 5.4], [0, 22], { xt: [0, 0.5, 1, 2, 5], xf: v => String(v), xl: 'mm', yt: [0, 4, 8, 12, 16, 20], yl: 'A（以 0.25 mm 為 1）', t0: m('line') });
+    nCurve(P, [0, 5.4], [0, 21.6], COL.chalk, m('line') + .4, 1.2, 3, { 'stroke-dasharray': '10 8' });
+    PATHS.forEach((pp, i) => nDot(P.g, P.px(pp), P.py(pp / .25), 9, PATHC[pp], m('line') + 1 + i * .25));
+    const rl = nText(p, '理想：A 與 b 成正比', 1210, 720, m('ruler'), { size: 30, fill: GOLD, anchor: 'middle', weight: 700 });
+    pulse(rl, m('ruler') + .3, 1.15);
+  }],
+
+  ['saturate', '飽和', (m) => {
+    const p = panel(0);
+    S.satTitle = nTitle(p, '儀器的極限：飽和');
+    const P = nPlot(p, [130, 150, 880, 450], [1340, 2550], [0, 2.6],
+      { xt: [1400, 1600, 1800, 2000, 2200, 2400], xl: 'nm', yt: [0, .5, 1, 1.5, 2, 2.5], yf: v => String(v), yl: '吸光度 A（水）', t0: m('spec') - .3 });
+    PATHS.forEach((pp, i) => nCurve(P, WL, NIR.A[String(pp)][0], PATHC[pp], m('spec') + i * .55, 1.1, 3));
+    nLegend(p, PATHS.map(pp => [pstr(pp), PATHC[pp]]), 1050, 190, m('spec') + 1, 22);
+    const [bx, , bw] = P.box;
+    const pl = mk('rect', { x: bx, y: P.py(2.4), width: bw, height: P.py(2.2) - P.py(2.4), fill: '#ffffff' }, P.g);
+    put(pl, { o: 0 }); tw(pl, { o: .12 }, m('plateau'), .6);
+    nText(p, '飽和平台 A ≈ 2.2–2.4', bx + bw - 10, P.py(2.4) - 12, m('plateau') + .3, { size: 24, anchor: 'end', fill: COL.chalk, weight: 600 });
+    nHLine(P, A_LIM, BADC, m('limit'));
+    nText(p, 'A = 1.5（保守上限）', bx + bw - 10, P.py(A_LIM) + 30, m('limit') + .3, { size: 24, fill: BADC, weight: 600, anchor: 'end' });
+    // 未飽和波長比例
+    nText(p, '4 條光譜皆 A < 1.5', 1190, 400, m('frac'), { size: 24, fill: COL.dim });
+    nText(p, '的波長比例', 1190, 430, m('frac'), { size: 24, fill: COL.dim });
+    PATHS.forEach((pp, i) => {
+      const y = 470 + i * 42, fr = nFrac(pp);
+      nText(p, pstr(pp), 1190, y + 8, m('frac') + .4 + i * .5, { size: 22, fill: PATHC[pp] });
+      const b = mk('rect', { x: 1290, y: y - 12, width: 0, height: 22, fill: PATHC[pp] }, p);
+      tw(b, { a_width: Math.max(2, 200 * fr) }, m('frac') + .4 + i * .5, .6, out);
+      nText(p, Math.round(fr * 100) + '%', 1500, y + 8, m('frac') + .8 + i * .5, { size: 22, fill: COL.chalk, anchor: 'end', weight: 600 });
+    });
+  }],
+
+  ['q1', '小測驗', () => {}, { ask: done => quiz(BAND, [{
+    id: 'c-ratio', prompt: ['某吸收帶在 0.25 mm 的吸光度是 0.4。若比爾–朗伯定律成立，換成 2 mm 時吸光度應為多少？'],
+    build: blanks([{ parts: ['A = ', { box: '3.2' }], why: '2 ÷ 0.25 = 8 倍，0.4 × 8 = 3.2。但這已超過儀器上限（約 2.2–2.4），實際量到的會被壓平：飽和。', hint: '光徑變成幾倍？2 ÷ 0.25 = ?' }]),
+  }], done) }],
+
+  ['bands', '特徵帶', (m) => {
+    const p = panel(0);
+    nTitle(p, '用化學原理選特徵帶');
+    const P = nPlot(p, [130, 150, 880, 450], [1340, 2550], [0, 2.6],
+      { xt: [1400, 1600, 1800, 2000, 2200, 2400], xl: 'nm', yt: [0, .5, 1, 1.5, 2, 2.5], yl: '吸光度 A（1 mm）', t0: .2 });
+    CONC.forEach((_, i) => nCurve(P, WL, NIR.A['1'][i], SAMPC[i], .3 + i * .3, 1.2, 2.5));
+    nLegend(p, SAMPL.map((l, i) => [l, SAMPC[i]]), 1050, 190, .8, 22);
+    nBand(P, 2246, 2270, GOLD, .3, m('ch'));
+    nText(p, '2258 nm', P.px(2258), 140, m('ch') + .2, { size: 24, fill: GOLD, anchor: 'middle', weight: 700 });
+    nText(p, 'C–H 組合帶', P.px(2258), 590, m('ch') + .5, { size: 22, fill: GOLD, anchor: 'middle' });
+    nBand(P, 1660, 1680, GOLD, .3, m('ch2'));
+    nText(p, '1670 nm', P.px(1670), 140, m('ch2') + .2, { size: 24, fill: GOLD, anchor: 'middle', weight: 700 });
+    nText(p, 'C–H 一倍頻', P.px(1670), 590, m('ch2') + .5, { size: 22, fill: GOLD, anchor: 'middle' });
+    [1450, 1940].forEach((w, i) => {
+      nBand(P, w - 25, w + 25, WATERC, .25, m('water') + i * .6);
+      nText(p, '水 ' + w, P.px(w), 590, m('water') + .3 + i * .6, { size: 22, fill: WATERC, anchor: 'middle' });
+    });
+    nText(p, '水帶在 1 mm 以上已飽和', P.px(1940), 182, m('water') + 1.6, { size: 22, fill: WATERC, anchor: 'middle' });
+    // 正確與錯誤的選法
+    const wy = 380;
+    nText(p, '✗ 從 142 個波長挑 R² 最高', 1060, wy, m('why') + 2.5, { size: 26, fill: BADC, weight: 600 });
+    nText(p, '　n = 4 時一定挑到假訊號', 1060, wy + 38, m('why') + 4, { size: 22, fill: COL.dim });
+    nText(p, '✓ 依化學鍵選帶', 1060, wy + 110, m('why') + .2, { size: 26, fill: OKC, weight: 600 });
+    nText(p, '　C–H：2258、1670 nm', 1060, wy + 148, m('why') + .8, { size: 22, fill: COL.dim });
+  }],
+
+  ['deriv', '二階導數', (m) => {
+    const p = panel(0);
+    nTitle(p, '基礎二　二階導數');
+    const boxes = [[110, 230, 400, 300], [600, 230, 400, 300], [1090, 230, 400, 300]];
+    const raw = TOY_BASE.map(b => TX0.map(x => b(x) + toyPeak(x)));
+    const d1 = raw.map(y => dd(y, 1)), d2 = raw.map(y => dd(y, 2));
+    const P0 = nPlot(p, boxes[0], [-1, 1], [0, 1.8], { t0: m('base') - .3 });
+    const P1 = nPlot(p, boxes[1], [-1, 1], [-5, 5], { y0: 0, t0: m('d1') - .3 });
+    const P2 = nPlot(p, boxes[2], [-1, 1], [-60, 22], { y0: 0, t0: m('d2') - .3 });
+    nText(p, '原始光譜', 310, 205, m('base') - .3, { size: 28, anchor: 'middle', weight: 700 });
+    nText(p, '一階導數：平移消失', 800, 205, m('d1') - .3, { size: 28, anchor: 'middle', weight: 700 });
+    nText(p, '二階導數：傾斜也消失', 1290, 205, m('d2') - .3, { size: 28, anchor: 'middle', weight: 700 });
+    raw.forEach((y, k) => nCurve(P0, TX0, y, TOYC[k], m('base') + .2 + k * 1.6, 1, 3));
+    nLegend(p, [['基線平', TOYC[0]], ['整條平移', TOYC[1]], ['傾斜', TOYC[2]]], 130, 600, m('base') + 1, 22);
+    d1.forEach((y, k) => nCurve(P1, TX0.slice(1, -1), y.slice(1, -1), TOYC[k], m('d1') + .2 + k * .3, 1, 3));
+    d2.forEach((y, k) => nCurve(P2, TX0.slice(2, -2), y.slice(2, -2), TOYC[k], m('d2') + .2 + k * .3, 1, k ? 2 : 6));
+    nText(p, '三條重合', 1290, 600, m('d2') + 1.6, { size: 24, fill: COL.chalk, anchor: 'middle' });
+    // 濃度越高谷越深
+    [.4, .7].forEach((h, k) => {
+      const y = dd(TX0.map(x => .2 + toyPeak(x, h)), 2);
+      nCurve(P2, TX0.slice(2, -2), y.slice(2, -2), SAMPC[k + 1], m('dip') + .5 + k * .5, .8, 2.5);
+    });
+    nText(p, '峰 → 谷；濃度越高，谷越深', 1290, 650, m('dip') + .3, { size: 26, fill: GOLD, anchor: 'middle', weight: 700 });
+  }],
+
+  ['sg', 'Savitzky–Golay', (m, D) => {
+    const p = panel(0);
+    nTitle(p, 'Savitzky–Golay：9 點拋物線擬合');
+    const lo = SG_I - 10, hi = SG_I + 10;
+    const P = nPlot(p, [130, 170, 820, 420], [WL[lo] - 8, WL[hi] + 8], [1.25, 2.15],
+      { xt: [2150, 2200, 2250, 2300, 2350], xl: 'nm', yt: [1.3, 1.5, 1.7, 1.9, 2.1], yl: '吸光度（1 mm、7.45%）', t0: .2 });
+    const [, by, , bh] = P.box;
+    for (let i = lo; i <= hi; i++) nDot(P.g, P.px(WL[i]), P.py(SG_S[i]), 7, COL.chalk, .5 + (i - lo) * .04);
+    const win = k => [P.px(wlAt(k - 4.5)), P.px(wlAt(k + 4.5))];
+    const parD = k => { const q = sgQuad(k); let d = '';
+      for (let j = -4.5; j <= 4.501; j += .25) d += (d ? 'L' : 'M') + P.px(wlAt(k + j)).toFixed(1) + ' ' + P.py(q.a * j * j + q.b * j + q.c).toFixed(1);
+      return d; };
+    // 靜態的視窗與拋物線（k = SG_I）
+    const [w0, w1] = win(SG_I);
+    const wr = mk('rect', { x: w0, y: by, width: w1 - w0, height: bh, fill: GOLD }, P.g); put(wr, { o: 0 }); tw(wr, { o: .14 }, m('win'), .5);
+    const wl9 = nText(p, '9 個點', (w0 + w1) / 2, by - 12, m('win') + .3, { size: 24, fill: GOLD, anchor: 'middle', weight: 700 });
+    const par = path(P.g, parD(SG_I), { stroke: GOLD, 'stroke-width': 4, fill: 'none' }, { d: 0 }); draw(par, m('fit'), 1);
+    // 公式
+    const fx = 1030;
+    const f1 = M(p, ['y = a x', E('2'), ' + b x + c'], { x: fx, y: 230, size: 44, anchor: 'start', o: 0 }); show(f1, m('coef'));
+    nText(p, 'x = −4, −3, …, 4（點的編號）', fx, 285, m('coef') + .6, { size: 24, fill: COL.dim });
+    const f2 = M(p, ['d', E('2'), 'y / d x', E('2'), ' = 2a'], { x: fx, y: 360, size: 44, fill: GOLD, anchor: 'start', o: 0 }); show(f2, m('coef') + 1.6);
+    // 滑動視窗
+    const P2 = nPlot(p, [1030, 470, 440, 150], [WL[lo] - 8, WL[hi] + 8], SG_D2R, { y0: 0, t0: m('slide') - .3 });
+    nText(p, '二階導數光譜', 1030, 455, m('slide') - .3, { size: 22, fill: COL.dim });
+    const kFrom = SG_I - 6, kTo = SG_I + 6;
+    const dots = [];
+    for (let k = kFrom; k <= kTo; k++) {
+      const q = sgQuad(k);
+      const c = mk('circle', { cx: P2.px(WL[k]), cy: P2.py(2 * q.a), r: 6, fill: GOLD, visibility: 'hidden' }, P2.g); dots.push(c);
+    }
+    const swr = mk('rect', { x: w0, y: by, width: w1 - w0, height: bh, fill: GOLD, 'fill-opacity': .14, visibility: 'hidden' }, P.g);
+    const spar = mk('path', { d: parD(SG_I), stroke: GOLD, 'stroke-width': 4, fill: 'none', visibility: 'hidden' }, P.g);
+    hide(wr, m('slide'), .01); hide(par, m('slide'), .01); hide(wl9, m('slide'), .3);
+    let lastK = null;
+    prog(q => {
+      const k = q > 0 ? Math.round(kFrom + (kTo - kFrom) * q) : null;
+      if (k === lastK) return; lastK = k;
+      const on = k != null;
+      swr.setAttribute('visibility', on ? 'visible' : 'hidden'); spar.setAttribute('visibility', on ? 'visible' : 'hidden');
+      dots.forEach((c, i) => c.setAttribute('visibility', on && kFrom + i <= k ? 'visible' : 'hidden'));
+      if (on) { const [a0, a1] = win(k); swr.setAttribute('x', a0); swr.setAttribute('width', a1 - a0); spar.setAttribute('d', parD(k)); }
+    }, m('slide'), 5, lin);
+    nText(p, '單位：每點²（波長間距不等）', 1030, 690, m('unit'), { size: 24, fill: COL.dim });
+  }],
+
+  ['regress', '線性回歸', (m) => {
+    const p = panel(0);
+    nTitle(p, '基礎三　線性回歸');
+    const P = nPlot(p, [150, 170, 800, 420], [0, 8], [0, 10],
+      { xt: [0, 2, 4, 6, 8], xl: '酸度 %', yt: [0, 2, 4, 6, 8, 10], yl: '二階導數 ×10⁻³（1 mm、2258 nm）', t0: .2 });
+    const yhat = x => FIT1.icpt + FIT1.slope * x;
+    // 殘差
+    CONC.forEach((c, i) => {
+      const e = path(P.g, `M${P.px(c)} ${P.py(D2K[i])}V${P.py(yhat(c))}`, { stroke: BADC, 'stroke-width': 3, 'stroke-dasharray': '6 5' }, { o: 0 });
+      show(e, m('fit') + 1.4 + i * .3);
+    });
+    nCurve(P, [0, 8], [yhat(0), yhat(8)], GOLD, m('fit'), 1.2, 4);
+    CONC.forEach((c, i) => nDot(P.g, P.px(c), P.py(D2K[i]), 11, SAMPC[i], m('pts') + .4 + i * .5));
+    // 斜率三角形
+    const x0 = 2, x1 = 6;
+    const tri = path(P.g, `M${P.px(x0)} ${P.py(yhat(x0))}H${P.px(x1)}V${P.py(yhat(x1))}`, { stroke: COL.chalk, 'stroke-width': 2.5, fill: 'none' }, { d: 0 });
+    draw(tri, m('slope'), .8);
+    nText(p, '+4 %', P.px(4), P.py(yhat(x0)) - 12, m('slope') + .6, { size: 22, anchor: 'middle' });
+    nText(p, fmt(FIT1.slope * 4, 2), P.px(x1) + 12, P.py((yhat(x0) + yhat(x1)) / 2), m('slope') + .9, { size: 22 });
+    // 右欄
+    const rx = 1030;
+    nText(p, '最小平方法：', rx, 230, m('fit') + .4, { size: 28, weight: 700 });
+    nText(p, '讓 Σ（殘差）² 最小', rx, 272, m('fit') + .9, { size: 26, fill: BADC });
+    nText(p, '斜率 = 靈敏度', rx, 360, m('slope'), { size: 28, weight: 700 });
+    nText(p, fmt(FIT1.slope, 3) + ' × 10⁻³ / %', rx, 402, m('slope') + .6, { size: 28, fill: GOLD, weight: 700 });
+    nText(p, 'R² = 1 − SS殘差 / SS總', rx, 490, m('r2'), { size: 28, weight: 700 });
+    nText(p, '= ' + R2_1.toFixed(2), rx, 535, m('r2') + 2.5, { size: 32, fill: GOLD, weight: 700 });
+  }],
+
+  ['q2', '小測驗', () => {}, { ask: done => quiz({ x: 990, y: 140, w: 580, cls: 'side' }, [{
+    id: 'c-slope', prompt: ['校正直線的斜率代表什麼？'],
+    build: choice([['酸度每增加 1%，訊號改變多少（靈敏度）'], ['訊號和酸度的相關程度'], ['酸度為 0 時的訊號']], 0,
+      '斜率 = Δ訊號 ÷ Δ酸度，就是靈敏度。斜率越大，同樣的濃度差能產生越大的訊號差。',
+      [null, '相關程度是 R² 在描述的，不是斜率。', '酸度為 0 時的訊號是截距。']),
+  }], done) }],
+
+  ['ratio', 'Beer–Lambert 檢查', (m) => {
+    const p = panel(0);
+    nTitle(p, '關鍵檢查：靈敏度與光徑成正比嗎？');
+    const P = nPlot(p, [170, 170, 860, 470], [-.5, 4.5], [-2, 21],
+      { y0: 0, yt: [0, 4, 8, 12, 16, 20], yl: '靈敏度比（2258 nm，以 0.25 mm 為 1）', t0: m('bars') - .3 });
+    const [, by, , bh] = P.box;
+    PATHS.forEach((pp, i) => {
+      const x = P.px(i);
+      nText(p, pstr(pp), x, by + bh + 34, m('bars') + i * .1, { size: 24, fill: PATHC[pp], anchor: 'middle', weight: 600 });
+      // 理想值（虛框）
+      const id = mk('rect', { x: x - 55, y: P.py(0), width: 110, height: 0, fill: 'none', stroke: COL.chalk, 'stroke-width': 2.5, 'stroke-dasharray': '8 6' }, P.g);
+      if (i) tw(id, { a_y: P.py(IDEAL[i]), a_height: P.py(0) - P.py(IDEAL[i]) }, m('ideal') + .9 + i * 1.1, .8, out);
+      if (i) nText(p, '理想 ×' + IDEAL[i], x, P.py(IDEAL[i]) - 12, m('ideal') + 1.3 + i * 1.1, { size: 22, fill: COL.dim, anchor: 'middle' });
+      // 實際值
+      const t0 = i === 0 ? m('bars') + .4 : i < 3 ? m('real') + .8 + (i - 1) * 1.2 : m('break') + .5 + (i - 3) * 1.8;
+      nBar(P.g, x, 80, P.py(0), P.py(RATIO[i]), PATHC[pp], t0);
+      nText(p, '實測 ' + fmt(RATIO[i]), x, by + bh + 72, t0 + .6, { size: 24, fill: PATHC[pp], anchor: 'middle', weight: 700 });
+      if (i >= 3) nText(p, '✗ 飽和', x, P.py(IDEAL[i] > 10 ? 9 : 6), t0 + 1, { size: 26, fill: BADC, anchor: 'middle', weight: 700 });
+    });
+    // 規則
+    const br = path(P.g, `M${P.px(0) - 60} ${P.py(5.5)}v-14H${P.px(2) + 60}v14`, { stroke: OKC, 'stroke-width': 3, fill: 'none' }, { d: 0 });
+    draw(br, m('rule'), .8);
+    nText(p, '正比成立', P.px(1), P.py(5.5) - 26, m('rule') + .5, { size: 26, fill: OKC, anchor: 'middle', weight: 700 });
+    nText(p, '規則', 1110, 260, m('rule'), { size: 30, weight: 700 });
+    nText(p, '在靈敏度與光徑', 1110, 310, m('rule') + .5, { size: 28 });
+    nText(p, '成正比的範圍內，', 1110, 350, m('rule') + .5, { size: 28 });
+    nText(p, '取最長的光徑。', 1110, 390, m('rule') + .5, { size: 28 });
+    const pk = nText(p, '✓ 選 1 mm', 1110, 500, m('pick'), { size: 60, fill: GOLD, weight: 800 });
+    pulse(pk, m('pick') + .4, 1.12);
+  }],
+
+  ['lod', '偵測極限', (m) => {
+    const p = panel(0);
+    nTitle(p, '基礎四　偵測極限 LOD');
+    const lf1 = nText(p, 'LOD = 3σ ÷ |斜率|', 800, 205, m('formula'), { size: 52, anchor: 'middle', weight: 700, fill: GOLD });
+    const lf2 = nText(p, 'σ：雜訊（二階導數）　斜率：靈敏度', 800, 250, m('formula') + 1.5, { size: 24, fill: COL.dim, anchor: 'middle' });
+    const local = [4.353, 9.618, 22.18], flat = [1.8, 2.6, 2.7], three = [0.25, 0.5, 1];
+    const mkChart = (box, vals, color, t0, title, sub) => {
+      const P = nPlot(p, box, [-.6, 2.6], [0, 24], { yt: [0, 5, 10, 15, 20], yl: '雜訊 ×10⁻⁴ AU', t0 });
+      nText(p, title, box[0] + box[2] / 2, box[1] - 46, t0, { size: 26, anchor: 'middle', weight: 700, fill: color });
+      three.forEach((pp, i) => {
+        nText(p, pstr(pp), P.px(i), box[1] + box[3] + 32, t0, { size: 22, fill: PATHC[pp], anchor: 'middle' });
+        nBar(P.g, P.px(i), 70, P.py(0), P.py(vals[i]), PATHC[pp], t0 + .5 + i * .5);
+        nText(p, vals[i].toFixed(1), P.px(i), P.py(vals[i]) - 10, t0 + 1 + i * .5, { size: 22, anchor: 'middle' });
+      });
+      nText(p, sub, box[0] + box[2] / 2, box[1] + box[3] + 72, t0 + 2.5, { size: 22, fill: COL.dim, anchor: 'middle' });
+    };
+    mkChart([170, 350, 520, 250], local, BADC, m('trap'), '在吸收帶旁估：增加約 5 倍', '把光譜的彎曲也算成雜訊');
+    mkChart([910, 350, 520, 250], flat, OKC, m('flat'), '平坦區 1550–1650 nm 估：幾乎不變', '這才是儀器真正的雜訊');
+    const rbox = G(p, { o: 0 });
+    mk('rect', { x: 360, y: 150, width: 880, height: 120, rx: 14, fill: COL.board, stroke: GOLD, 'stroke-width': 3 }, rbox);
+    T(rbox, 'LOD(1 mm) ≈ LOD(0.25 mm) ÷ 2.6', { x: 800, y: 205, size: 44, anchor: 'middle', weight: 700, fill: GOLD });
+    T(rbox, '雜訊 ×1.5，斜率 ×3.95　→　1.5 ÷ 3.95 ≈ 1 / 2.6', { x: 800, y: 250, size: 24, anchor: 'middle', fill: COL.chalk });
+    show(rbox, m('result')); hide(lf1, m('result'), .3); hide(lf2, m('result'), .3);
+  }],
+
+  ['loocv', '留一交叉驗證', (m) => {
+    const p = panel(0);
+    nTitle(p, '基礎五　留一交叉驗證');
+    const P = nPlot(p, [150, 170, 760, 420], [-1, 9], [0, 10],
+      { xt: [0, 2, 4, 6, 8], xl: '酸度 %', yt: [0, 2, 4, 6, 8, 10], yl: '二階導數 ×10⁻³', t0: .2 });
+    const J = 2, L = LOO[J];
+    CONC.forEach((c, i) => {
+      if (i === J) {
+        const g = G(P.g, { x: P.px(c), y: P.py(D2K[i]), s: 0 });
+        const fill = mk('circle', { r: 11, fill: SAMPC[i] }, g);
+        mk('circle', { r: 11, fill: 'none', stroke: SAMPC[i], 'stroke-width': 3 }, g);
+        tw(g, { s: 1 }, .5 + i * .2, .4, back); put(fill, { o: 1 }); tw(fill, { o: 0 }, m('leave') + .3, .4);
+      } else nDot(P.g, P.px(c), P.py(D2K[i]), 11, SAMPC[i], .5 + i * .2);
+    });
+    nText(p, '拿掉 4.87%', P.px(CONC[J]), P.py(D2K[J]) - 26, m('leave') + .5, { size: 22, fill: SAMPC[J], anchor: 'middle' });
+    const y = x => L.f.icpt + L.f.slope * x;
+    nCurve(P, [-1, 9], [y(-1), y(9)], GOLD, m('refit'), 1, 3.5);
+    // 預測：水平到直線，再垂直到 x 軸
+    const yy = P.py(D2K[J]), xp = P.px(L.pred), [, by, , bh] = P.box;
+    const pr = path(P.g, `M${P.px(CONC[J])} ${yy}H${xp}V${by + bh}`, { stroke: COL.chalk, 'stroke-width': 2.5, 'stroke-dasharray': '7 6', fill: 'none' }, { d: 0 });
+    draw(pr, m('pred'), 1);
+    nText(p, '預測 ' + L.pred.toFixed(2) + '%', xp + 10, by + bh - 100, m('pred') + .9, { size: 22, anchor: 'middle', fill: GOLD });
+    const er = path(P.g, `M${P.px(CONC[J])} ${by + bh - 46}H${xp}`, { stroke: BADC, 'stroke-width': 5 }, { o: 0 }); show(er, m('pred') + 1.6);
+    nText(p, '誤差', (P.px(CONC[J]) + xp) / 2, by + bh - 58, m('pred') + 1.8, { size: 22, anchor: 'middle', fill: BADC });
+    // 右欄：四次誤差
+    const rx = 1000, eg = G(p);
+    LOO.forEach((l, i) => {
+      const t0 = m('pred') + 2 + i * .5;
+      const e = T(eg, '拿掉 ' + SAMPL[i] + '：誤差 ' + fmt(l.err) + ' %', { x: rx, y: 220 + i * 44, size: 24, fill: SAMPC[i], o: 0 }); show(e, t0);
+    });
+    const rm = T(eg, 'RMSECV = √平均(誤差²) = ' + RMSECV.toFixed(2) + ' %', { x: rx, y: 430, size: 28, weight: 700, fill: GOLD, o: 0 }); show(rm, m('rmse'));
+    hide(eg, m('caution') - .2, .4);
+    // 只有 4 點：R² 和 RMSECV 都不穩
+    const tg = G(p, { o: 0 });
+    T(tg, '光徑', { x: rx, y: 230, size: 24, fill: COL.dim }); T(tg, 'R²', { x: rx + 180, y: 230, size: 24, fill: COL.dim }); T(tg, 'RMSECV', { x: rx + 320, y: 230, size: 24, fill: COL.dim });
+    const tab = [[0.25, '0.96', '1.08 %'], [0.5, '0.85', '3.34 %'], [1, '0.93', '2.18 %'], [2, '0.95', '1.22 %'], [5, '0.32', '17.2 %']];
+    tab.forEach(([pp, r2, rm2], i) => {
+      const yy2 = 280 + i * 46;
+      if (pp === 2) mk('rect', { x: rx - 14, y: yy2 - 32, width: 520, height: 44, rx: 6, fill: BADC, 'fill-opacity': .18 }, tg);
+      T(tg, pstr(pp), { x: rx, y: yy2, size: 24, fill: PATHC[pp] }); T(tg, r2, { x: rx + 180, y: yy2, size: 24 }); T(tg, rm2, { x: rx + 320, y: yy2, size: 24 });
+    });
+    T(tg, '2 mm 已飽和，R² 仍有 0.95', { x: rx, y: 540, size: 26, fill: BADC, weight: 700 });
+    T(tg, '→ 只當輔助，不能單獨決定光徑', { x: rx, y: 585, size: 26, fill: COL.chalk });
+    show(tg, m('caution') + .3);
+  }],
+
+  ['q3', '小測驗', () => { panel(0); }, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-rule', prompt: ['決定光徑的主要依據是什麼？'],
+    build: choice([['R² 最高的光徑'], ['在靈敏度與光徑成正比的範圍內，最長的光徑'], ['吸光度最大的光徑'], ['在吸收帶旁估雜訊時 LOD 最小的光徑']], 1,
+      '正比成立代表 Beer–Lambert 有效；在這個範圍內光徑越長，訊號越大、填樣誤差的影響越小。',
+      ['n = 4 時 R² 不穩定：飽和的 2 mm 也有 0.95。', null, '吸光度最大的通常已經飽和，Beer–Lambert 失效。', '吸收帶旁的雜訊把光譜彎曲也算進去，會錯誤地偏好短光徑。']),
+  }], done) }],
+
+  ['usable', '可用波段', (m) => {
+    const p = panel(0);
+    nTitle(p, '選定 1 mm 之後：可用波段');
+    const P = nPlot(p, [130, 150, 880, 450], [1340, 2550], [0, 2.6],
+      { xt: [1400, 1600, 1800, 2000, 2200, 2400], xl: 'nm', yt: [0, .5, 1, 1.5, 2, 2.5], yl: '吸光度 A（1 mm）', t0: .2 });
+    CONC.forEach((_, i) => nCurve(P, WL, NIR.A['1'][i], SAMPC[i], .3 + i * .2, 1, 2.5));
+    nHLine(P, A_LIM, BADC, .8);
+    // 1347–1413 nm 也低於 1.5，但只在光譜邊緣、被 1450 nm 水帶隔開，分析時不用
+    const seg = nSegments(1).filter(([a]) => a > 1450);
+    seg.forEach(([a, b], i) => {
+      nBand(P, a, b, OKC, .22, m('shade') + .5 + i * 2.5);
+      nText(p, Math.round(a) + '–' + Math.round(b), P.px((a + b) / 2), 142, m('shade') + .8 + i * 2.5, { size: 22, fill: OKC, anchor: 'middle', weight: 700 });
+    });
+    [[1890, 2100], [2300, 2550]].forEach(([a, b], i) => {
+      nBand(P, a, b, BADC, .18, m('out') + .3 + i * 1.5);
+      nText(p, '排除', P.px((a + b) / 2), 590, m('out') + .6 + i * 1.5, { size: 22, fill: BADC, anchor: 'middle', weight: 700 });
+    });
+    const rx = 1070;
+    nText(p, '可用（4 條皆 A < 1.5）', rx, 260, m('shade'), { size: 24, fill: OKC, weight: 600 });
+    seg.forEach(([a, b], i) => nText(p, Math.round(a) + '–' + Math.round(b) + ' nm', rx, 300 + i * 38, m('shade') + .8 + i * 2.5, { size: 24, fill: COL.chalk }));
+    nText(p, '濃度更高時改用 0.5 mm', rx, 460, m('alt'), { size: 26, fill: PATHC[0.5], weight: 700 });
+    nSegments(0.5).forEach(([a, b], i) => nText(p, Math.round(a) + '–' + Math.round(b) + ' nm', rx, 500 + i * 38, m('alt') + .6, { size: 24, fill: COL.dim }));
+  }],
+
+  ['wrap', '總結', (m) => {
+    const p = panel(0);
+    nTitle(p, '總結');
+    [['吸光度要小於 1.5，避開飽和。', 'w1'], ['用化學原理選特徵帶，二階導數消除基線。', 'w2'],
+     ['在靈敏度與光徑成正比的範圍內，取最長光徑。', 'w3'], ['R²、LOD、RMSECV 是輔助；雜訊在平坦區估。', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: GOLD }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 38, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+    nText(p, '下一步：做練習，再用 R 或 Python 親手驗證', 800, 740, m('end'), { size: 30, fill: GOLD, anchor: 'middle' });
+  }],
+
+  ['final1', '本章練習', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-ideal', prompt: ['2 mm 在 2258 nm 的實測靈敏度比是 3.38（以 0.25 mm 為 1）。若比爾–朗伯成立，理想值應為多少？'],
+    build: blanks([{ parts: ['理想值 = ', { box: '8' }], why: '2 ÷ 0.25 = 8。實測 3.38 遠低於 8，表示 2 mm 已經飽和。', hint: '理想值 = 光徑 ÷ 0.25 mm。' }]),
+  }, {
+    id: 'p-lod', prompt: ['校正直線斜率為 −0.001（每 1% 酸度），二階導數的雜訊 σ = 0.0002。偵測極限 LOD 是多少 %？'],
+    build: blanks([{ parts: ['LOD = ', { box: '0.6' }, ' %'], why: 'LOD = 3σ ÷ |斜率| = 3 × 0.0002 ÷ 0.001 = 0.6 %。', hint: '記得取斜率的絕對值：3 × 0.0002 ÷ 0.001。' }]),
+  }, {
+    id: 'p-class', prompt: ['依 2258 nm 的靈敏度比（實測 / 理想），判斷每個光徑：'],
+    build: grid([
+      { parts: ['0.5 mm：1.93 / 2'], ans: ['ok'], why: '接近理想，正比成立。' },
+      { parts: ['1 mm：3.95 / 4'], ans: ['ok'], why: '接近理想，正比成立，而且是其中最長的。' },
+      { parts: ['2 mm：3.38 / 8'], ans: ['sat'], why: '不到理想的一半：飽和。' },
+      { parts: ['5 mm：−0.36 / 20'], ans: ['sat'], why: '連方向都反了：嚴重飽和。' },
+    ], [['ok', '正比成立'], ['sat', '已飽和']], { multi: false, text: true }),
+  }], done, '本章練習') }],
+
+  ['finish', '完成', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+boot();
+</script>
+</body>
+</html>

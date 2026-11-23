@@ -1,0 +1,55 @@
+{
+  "schema": 1,
+  "tier": 1,
+  "book": {
+    "title": "近紅外光譜：最佳光徑選擇",
+    "slug": "nir-pathlength",
+    "language": "zh (Traditional, zh-Hant page; engine audio folder zh)",
+    "readers": "專題研究學生；二階導數、回歸、LOD、LOOCV 需重新教",
+    "pilot": "ch01",
+    "use": "class"
+  },
+  "words": [
+    "使用者：利用 papermorph 製作最佳光徑選擇的教學，附 R 及 Python（Jupyter 與 Colab）程式給學生練習及驗證。",
+    "對象是專題研究的學生，但二階導數、回歸、LOD、留一交叉驗證的基礎都還要再教一次。"
+  ],
+  "look": {
+    "palette": "engine default chalkboard",
+    "meaning": {
+      "path 0.25/0.5/1/2/5 mm": "#7ec8e3 #6fd3a0 #f2c14e #f39060 #e8596b",
+      "samples water/3.32/4.87/7.45": "#a8a8a8 #c9bcff #a28eff #7f62ff",
+      "chosen / key result": "#f2c14e",
+      "ok": "#6fd3a0",
+      "saturated / limit": "#ff6b6b"
+    },
+    "fonts": {
+      "text": "Segoe UI + Microsoft JhengHei (lib/book.css --ui)",
+      "math": "engine default"
+    },
+    "notation": "numbers as in analysis/光徑選擇報告.md; d2 in per-point² (index spacing); narration says numbers in words"
+  },
+  "voice": {
+    "engine": "edge",
+    "voice": "zh-TW-HsiaoChenNeural",
+    "rate": "-4%"
+  },
+  "pacing": {
+    "minutes": [
+      8,
+      10
+    ],
+    "checks": "three quick checks in the lesson, three practice items at the end"
+  },
+  "engine": {
+    "source": "DozenTwelve/Papermorph",
+    "ref": "engine-v2.12"
+  },
+  "data": "lib/nirdata.js from tools/nir-pathlength/make_data.py (teaching/data/spectra_long.csv); Traditional UI strings from tools/nir-pathlength/make_zh_hant.py",
+  "approved": [
+    {
+      "chapter": "ch01",
+      "date": "2026-11-23",
+      "why": "user approved the pilot as delivered: real-data plots, one beat per foundation (2nd derivative, regression, LOD, LOOCV), side cards for long Chinese choices"
+    }
+  ]
+}
