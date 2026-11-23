@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>方法確效報告</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/zh-hant.js"></script>
+<script src="../lib/nirdata.js"></script>
+<script src="../lib/nirkit.js"></script>
+<script src="../lib/ch09data.js"></script>
+<script src="audio/zh/timings.js"></script>
+<script>
+'use strict';
+// 第 9 章：方法確效報告。數字由 tools/nir-pathlength/make_data_ch09.py 從前八章的資料檔整理（lib/ch09data.js），
+// 與 exercises/ch09_validation_report.* 一致。±0.5 % 的目標是示意，畫面上標明。
+const CHAPTER = { number: 9, title: '方法確效報告', minutes: 7, language: 'zh' };
+
+const S9 = CH9.spec, RG9 = CH9.range, LN9 = CH9.lin, AC9 = CH9.acc, PR9 = CH9.prec, LD9 = CH9.lod, PD9 = CH9.pred, CARD9 = CH9.card;
+const f2 = v => fmt(v, 2);
+const STC = [BADC, GOLD, OKC], STL = ['沒有', '部分／初步', '有證據'];
+const NOTE9 = { size: 20, fill: COL.dim };
+const list9 = (p, items, y0, dy, size, m, color = GOLD) => items.forEach(([str, mark], i) => {
+  const g = G(p, { x: -16, y: y0 + i * dy, o: 0 });
+  mk('circle', { cx: 200, cy: -12, r: 28, fill: color }, g);
+  T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+  T(g, str, { x: 260, size, weight: 600 });
+  tw(g, { o: 1, x: 0 }, m(mark), .6);
+});
+const hbar9 = (P, y, lo, hi, color, t0) => {   // 水平區間
+  const e = path(P.g, `M${P.px(lo)} ${P.py(y)}H${P.px(hi)}`, { stroke: color, 'stroke-width': 14, 'stroke-linecap': 'round' }, { o: 0 });
+  show(e, t0); return e;
+};
+
+const BEATS = [
+  ['intro', '方法確效報告', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, '第 9 章 · 近紅外光譜定量醋酸', { x: 800, y: 320, size: 30, fill: COL.dim, anchor: 'middle' });
+    T(g, '方法確效報告', { x: 800, y: 440, size: 84, weight: 700, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = T(scene, '現在能不能拿來用？', { x: 800, y: 560, size: 42, fill: GOLD, anchor: 'middle', o: 0 });
+    show(r, m('sub'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['what', '確效是什麼', (m) => {
+    const p = panel(0);
+    nTitle(p, '確效：用證據說明方法適合它的用途');
+    nText(p, '第一步：先定用途與目標', 800, 250, m('purpose'), { size: 34, anchor: 'middle', weight: 700 });
+    nText(p, '示意目標：預測一瓶醋的酸度，區間 ±' + CH9.target_hw + ' % 以內', 800, 320, m('target'), { size: 30, anchor: 'middle', fill: GOLD, weight: 700 });
+    nText(p, '（真正的目標由用途決定）', 800, 360, m('target') + 1, { size: 22, anchor: 'middle', fill: COL.dim });
+    CARD9.forEach(([name], i) => {
+      const x = 330 + (i % 4) * 315, y = 470 + Math.floor(i / 4) * 110, g = G(p, { o: 0 });
+      mk('rect', { x: x - 135, y: y - 45, width: 270, height: 70, rx: 12, fill: 'none', stroke: COL.dim, 'stroke-width': 2 }, g);
+      T(g, name, { x, y: y + 2, size: 30, weight: 600, anchor: 'middle' });
+      show(g, m('items') + i * .35, .4);
+    });
+  }],
+
+  ['spec', '選擇性與範圍', (m) => {
+    const p = panel(0);
+    nTitle(p, '選擇性與範圍（1 mm）');
+    nText(p, 'R²（4 點）', 260, 230, m('two'), { size: 22, fill: COL.dim, anchor: 'middle' });
+    nText(p, '2258 nm', 470, 230, m('two'), { size: 22, fill: COL.dim, anchor: 'middle' });
+    nText(p, '1670 nm', 650, 230, m('two'), { size: 22, fill: COL.dim, anchor: 'middle' });
+    [['滴定', 'titr', 'two'], ['標示', 'label', 'label'], ['PAL-30S', 'pal30s', 'label'], ['Atago', 'atago', 'label']].forEach(([name, k, mark], i) => {
+      const y = 290 + i * 55, c = k === 'label' || k === 'pal30s' ? GOLD : COL.chalk, t0 = m(mark) + (i >= 2 ? (i - 1) * .8 : 0);
+      nText(p, name, 260, y, t0, { size: 28, anchor: 'middle', fill: c });
+      nText(p, S9.r2['2258'][k].toFixed(3), 470, y, t0 + .2, { size: 30, anchor: 'middle', fill: c, weight: 700 });
+      nText(p, S9.r2['1670'][k].toFixed(3), 650, y, t0 + .4, { size: 30, anchor: 'middle', fill: c, weight: 700 });
+    });
+    nText(p, '標示是標稱值，R² 卻比滴定高：', 180, 540, m('label') + 2.5, { size: 24, fill: GOLD });
+    nText(p, '4 點時 R² 分不出哪個參考值對', 180, 578, m('label') + 3, { size: 24, fill: GOLD, weight: 700 });
+    nText(p, '兩個醋酸帶一致 = 一致性', 900, 280, m('notsel'), { size: 28, weight: 700 });
+    nText(p, '≠ 選擇性', 900, 322, m('notsel') + .5, { size: 28, fill: BADC, weight: 700 });
+    nText(p, '要測糖等干擾物、不同的醋', 900, 362, m('notsel') + 1.2, { size: 24 });
+    nText(p, '範圍：2258 nm 最大吸光度 ' + f2(RG9.A2258_1mm_max) + ' < ' + RG9.A_limit, 900, 470, m('range'), { size: 26 });
+    nText(p, '→ 1 mm 未飽和', 900, 510, m('range') + .6, { size: 26, fill: OKC, weight: 700 });
+    nText(p, '上限 ' + RG9.titr[1] + ' % 只靠一次有爭議的滴定', 900, 570, m('range') + 2, { size: 24, fill: BADC });
+    nText(p, '下一次能確認：' + RG9.plan.join('–') + ' %', 900, 610, m('range') + 3, { size: 24, fill: GOLD });
+  }],
+
+  ['lin', '線性', (m) => {
+    const p = panel(0);
+    nTitle(p, '線性（1 mm、2258 nm）');
+    nText(p, 'R²：Atago ' + LN9.r2_atago.toFixed(3) + '　滴定 ' + LN9.r2_titr.toFixed(3), 800, 270, m('r2'), { size: 36, anchor: 'middle', weight: 700 });
+    nText(p, '4 點、各量一次 → 純誤差自由度 = ' + LN9.pure_df_now, 800, 370, m('df'), { size: 32, anchor: 'middle', fill: BADC, weight: 700 });
+    nText(p, '無法檢查是不是直線（缺適性檢定）', 800, 415, m('df') + .8, { size: 28, anchor: 'middle' });
+    nText(p, '下一次：8 濃度 × 3 次 → 缺適性自由度 ' + LN9.lof_df_plan + '、純誤差自由度 ' + LN9.pure_df_plan, 800, 515, m('plan'), { size: 30, anchor: 'middle', fill: OKC, weight: 700 });
+    nText(p, '注意：同一稀釋的 3 次填樣共用配製誤差', 800, 615, m('caution'), { size: 26, anchor: 'middle', fill: GOLD });
+    nText(p, '「不是直線」也可能只是配製的散布，不一定是彎曲', 800, 655, m('caution') + 1.5, { size: 26, anchor: 'middle', fill: GOLD });
+  }],
+
+  ['q1', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-lof', prompt: ['只有 4 個濃度、每個量一次，能不能檢查校正線是不是直線？'],
+    build: choice([['不能：純誤差自由度是 0，沒辦法做缺適性檢定'], ['能：R² 0.99 就代表是直線'], ['能：畫圖看起來很直就好']], 0,
+      '缺適性檢定要比較「離直線的偏差」和「重複之間的差異」；沒有重複，就沒有後者。',
+      [null, 'R² 高不代表是直線；彎曲的關係也可能 R² 很高。', '4 個點，看起來直不能當證據。']),
+  }], done) }],
+
+  ['acc', '準確度', (m) => {
+    const p = panel(0);
+    nTitle(p, '準確度：沒有獨立樣品，只有留一交叉驗證');
+    const P = nPlot(p, [200, 170, 760, 450], [-.6, 3.6], [0, 2.5], { xt: [], yt: [0, .5, 1, 1.5, 2], yl: 'RMSECV（酸度 %）', t0: m('none') });
+    [[AC9.rmsecv_atago, '單一波長', 'Atago', '#6fb0ff', 'cv'], [AC9.rmsecv_titr, '單一波長', '滴定', GOLD, 'cv'], [AC9.rmsecv_pal30s, '單一波長', 'PAL-30S', OKC, 'pal'], [AC9.rmsecv_pls, 'PLS（第 4 章）', 'Atago', BADC, 'pls']].forEach(([v, a, b, c, mark], i) => {
+      const t0 = m(mark) + (i === 1 ? 1 : 0);
+      nBar(P.g, P.px(i), 80, P.py(0), P.py(v), c, t0);
+      nText(p, f2(v), P.px(i), P.py(v) - 12, t0 + .5, { size: 26, anchor: 'middle', fill: c, weight: 700 });
+      nText(p, a, P.px(i), P.box[1] + P.box[3] + 36, t0, { size: 22, anchor: 'middle' });
+      nText(p, b, P.px(i), P.box[1] + P.box[3] + 64, t0, { size: 20, anchor: 'middle', fill: COL.dim });
+    });
+    const hl = path(P.g, `M${P.px(-.6)} ${P.py(AC9.atago_day_sd)}H${P.px(3.6)}`, { stroke: COL.chalk, 'stroke-width': 2, 'stroke-dasharray': '8 6' }, { o: 0 });
+    show(hl, m('pls') + .5);
+    nText(p, '虛線：Atago 兩天差異 ' + f2(AC9.atago_day_sd), P.px(3.6) + 12, P.py(AC9.atago_day_sd) + 26, m('pls') + .5, { size: 20 });
+    nText(p, '和 PAL-30S 最一致：只是一致性', 1060, 230, m('pal'), { size: 24, fill: OKC });
+    nText(p, 'PLS 比它的參考值還準？', 1060, 300, m('pls') + 2, { size: 28, fill: BADC, weight: 700 });
+    nText(p, '→ 4 個樣品時的過度擬合', 1060, 342, m('pls') + 2.8, { size: 26 });
+    nText(p, '參考值彼此對不上（第 8 章）', 1060, 450, m('ref'), { size: 26 });
+    nText(p, '準確度：目前沒有證據', 1060, 520, m('ref') + 2, { size: 32, fill: BADC, weight: 700 });
+  }],
+
+  ['prec', '精密度', (m) => {
+    const p = panel(0);
+    nTitle(p, '精密度：量過什麼、沒量過什麼');
+    nText(p, '量過', 400, 240, m('scan'), { size: 30, fill: OKC, weight: 700, anchor: 'middle' });
+    nText(p, '同一瓶水掃兩次', 400, 310, m('scan') + .4, { size: 28, anchor: 'middle' });
+    nText(p, '差異 RMS ' + PR9.scan_rms_AU.toFixed(4) + ' AU', 400, 355, m('scan') + .8, { size: 28, anchor: 'middle', fill: OKC });
+    nText(p, '（約 ' + PR9.scan_conc_025.toFixed(3) + ' % 濃度，0.25 mm）', 400, 395, m('scan') + 1.2, { size: 22, anchor: 'middle', fill: COL.dim });
+    nText(p, '沒量過', 1150, 240, m('fill'), { size: 30, fill: BADC, weight: 700, anchor: 'middle' });
+    ['重新填樣', '不同天', '不同操作者'].forEach((s, i) => nText(p, '✗ ' + s, 1150, 310 + i * 50, m('fill') + .4 + i * .4, { size: 28, anchor: 'middle', fill: BADC }));
+    nText(p, '第一步：預試驗，同一瓶醋填樣 10 次（第 7 章）', 800, 590, m('plan'), { size: 30, anchor: 'middle', fill: GOLD, weight: 700 });
+    nText(p, '之後：不同天、不同人重複', 800, 640, m('plan') + 1.5, { size: 26, anchor: 'middle' });
+  }],
+
+  ['q2', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-pls', prompt: ['PLS 的 RMSECV 0.32 %，比 Atago 自己兩天的差異 0.41 % 還小。最合理的解讀是？'],
+    build: choice([['樣品太少，可能過度擬合；不能當作準確度的證據'], ['PLS 比參考方法還準'], ['以後可以不用 Atago 了']], 0,
+      '模型不可能穩定地比它學習的參考值更準；4 個樣品時，交叉驗證誤差很不可靠。',
+      [null, '模型學的是參考值；比參考值還準，代表交叉驗證低估了誤差。', '這只說明交叉驗證不可靠，不能拿來評價 Atago。']),
+  }], done) }],
+
+  ['lod', '偵測與定量極限', (m) => {
+    const p = panel(0);
+    nTitle(p, '偵測極限 LOD 與定量極限 LOQ（1 mm，酸度 %）');
+    const P = nPlot(p, [200, 170, 760, 450], [-.6, 2.6], [0, 7], { xt: [], yt: [0, 2, 4, 6], yl: '酸度 %', t0: m('two') });
+    [[LD9.ch01_lod_1mm, LD9.ch01_loq_1mm, '儀器雜訊法', '第 1 章', '#6fb0ff', 'two'], [LD9.res_titr[0], LD9.res_titr[1], '殘差法', '滴定（第 5 章）', GOLD, 'res'],
+     [LD9.res_atago[0], LD9.res_atago[1], '殘差法', 'Atago（第 5 章）', BADC, 'res']].forEach(([lod, loq, a, b, c, mark], i) => {
+      const t0 = m(mark) + (i === 2 ? 1 : 0), top = Math.min(loq, 7);
+      nBar(P.g, P.px(i) - 24, 44, P.py(0), P.py(lod), c, t0);
+      nBar(P.g, P.px(i) + 24, 44, P.py(0), P.py(top), 'none', t0 + .3, .8, { stroke: c, 'stroke-width': 3 });
+      nText(p, f2(lod), P.px(i) - 24, P.py(lod) - 10, t0 + .6, { size: 20, anchor: 'middle', fill: c, weight: 700 });
+      nText(p, loq > 7 ? '↑ ' + loq.toFixed(1) : loq.toFixed(1), P.px(i) + 24, P.py(top) - 10, t0 + .9, { size: 20, anchor: 'middle', fill: c });
+      nText(p, a, P.px(i), P.box[1] + P.box[3] + 36, t0, { size: 22, anchor: 'middle' });
+      nText(p, b, P.px(i), P.box[1] + P.box[3] + 64, t0, { size: 20, anchor: 'middle', fill: COL.dim });
+    });
+    nText(p, '實心 LOD（3σ）、空心 LOQ（10σ）', 1040, 230, m('two'), NOTE9);
+    nText(p, '殘差法包含填樣與參考值誤差', 1040, 330, m('why'), { size: 26 });
+    nText(p, '→ 比較接近實際', 1040, 372, m('why') + .6, { size: 26, fill: OKC });
+    nText(p, '但只有 4 點：都只是初步數字', 1040, 450, m('why') + 2, { size: 26, fill: GOLD, weight: 700 });
+  }],
+
+  ['robust', '穩健性與系統適用性', (m) => {
+    const p = panel(0);
+    nTitle(p, '穩健性與系統適用性');
+    nText(p, '穩健性：條件稍微改變，結果會不會跟著變？', 200, 260, m('rob'), { size: 30, weight: 700 });
+    nText(p, '溫度、操作者、樣品槽：都沒有測', 200, 310, m('rob') + 1, { size: 28, fill: BADC });
+    nText(p, '系統適用性：每次實驗前確認系統正常', 200, 420, m('suit'), { size: 30, weight: 700 });
+    nText(p, '水帶規則（第 6 章）：1 mm 水帶峰值 ' + f2(CH9.suit.wb_peak_1mm) + ' ≥ 1.5，只能當參考', 200, 470, m('suit') + 1.5, { size: 26, fill: BADC });
+    nText(p, '1 mm 改用共同對照樣品（第 7 章）：每次都量同一瓶，偏了就停下來檢查', 200, 570, m('ctrl'), { size: 28, fill: OKC, weight: 700 });
+  }],
+
+  ['card', '確效總表', (m) => {
+    const p = panel(0);
+    nTitle(p, '確效總表：現在的證據與下一步');
+    STL.forEach((s, k) => {
+      const g = G(p, { o: 0 }); mk('circle', { cx: 900 + k * 200, cy: 152, r: 10, fill: STC[k] }, g);
+      T(g, s, { x: 918 + k * 200, y: 160, size: 20 }); show(g, m('legend') + k * .2);
+    });
+    nText(p, '項目', 200, 215, m('legend'), { size: 20, fill: COL.dim });
+    nText(p, '現在的證據', 440, 215, m('legend'), { size: 20, fill: COL.dim });
+    nText(p, '怎麼補', 1130, 215, m('fill'), { size: 20, fill: COL.dim });
+    CARD9.forEach(([name, st, ev, plan], i) => {
+      const y = 270 + i * 62, t0 = m('now') + i * .5;
+      const g = G(p, { o: 0 }); mk('circle', { cx: 395, cy: y - 8, r: 12, fill: STC[st] }, g); show(g, t0);
+      nText(p, name, 200, y, t0, { size: 26, weight: 700 });
+      nText(p, ev, 440, y, t0 + .2, { size: 20 });
+      nText(p, plan, 1130, y, m('fill') + i * .25, { size: 20, fill: OKC });
+    });
+  }],
+
+  ['gap', '離目標多遠', (m) => {
+    const p = panel(0);
+    nTitle(p, '預測區間：現在、下一次、目標（酸度 %）');
+    const P = nPlot(p, [520, 200, 900, 420], [0, 10], [-.5, 3.5], { xt: [0, 2, 4, 6, 8, 10], yt: [], t0: m('now') });
+    const rows = [[3, PD9.now_x0, PD9.now_hw, BADC, '現在：4 點滴定、未知樣品填 1 次', 'now'],
+                  [2, 4, PD9.plan_hw_m3[0], OKC, '下一次：填樣誤差 ' + PD9.plan_s[0] + ' %', 'plan'],
+                  [1, 4, PD9.plan_hw_m3[4], GOLD, '下一次：填樣誤差 ' + PD9.plan_s[4] + ' %', 'plan'],
+                  [0, 4, CH9.target_hw, COL.chalk, '示意目標', 'target']];
+    rows.forEach(([y, c, hw, col, lab, mark], i) => {
+      const t0 = m(mark) + (i === 2 ? 1.5 : 0);
+      hbar9(P, y, c - hw, c + hw, col, t0);
+      nText(p, lab, 500, P.py(y) + 8, t0, { size: 24, anchor: 'end', fill: col });
+      nText(p, '±' + f2(hw), P.px(c + hw) + 18, P.py(y) + 8, t0 + .4, { size: 24, fill: col, weight: 700 });
+    });
+    nText(p, '下一次：8 濃度 × 3 次、未知樣品填 3 次，假設配製沒有誤差', 800, 720, m('plan') + 2.5, { size: 22, anchor: 'middle', fill: COL.dim });
+    nText(p, '能不能達到目標，要等預試驗的結果', 800, 770, m('target') + 1, { size: 28, anchor: 'middle', fill: GOLD, weight: 700 });
+  }],
+
+  ['q3', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 110, w: 940, cls: 'side' }, [{
+    id: 'c-claim', prompt: ['以現在的數據，報告可以這樣寫嗎？'],
+    build: grid([
+      { parts: ['「本方法已完成確效」'], ans: ['no'], why: '準確度、精密度、選擇性、穩健性都還沒有證據。' },
+      { parts: ['「1 mm、2258 nm 與滴定酸度呈線性（n = 4），屬可行性研究」'], ans: ['ok'], why: '說清楚樣品數與研究性質，沒有誇大。' },
+      { parts: ['「NIR 可以取代滴定」'], ans: ['no'], why: '沒有獨立樣品比較，不能下這個結論。' },
+      { parts: ['「準確度尚未以獨立樣品驗證」'], ans: ['ok'], why: '誠實寫出缺的部分。' },
+    ], [['ok', '可以'], ['no', '不行']], { multi: false, text: true }),
+  }], done) }],
+
+  ['report', '報告怎麼寫', (m) => {
+    const p = panel(0);
+    nTitle(p, '報告：能說什麼、不能說什麼');
+    nText(p, '能說', 420, 240, m('can'), { size: 32, fill: OKC, weight: 700, anchor: 'middle' });
+    ['1 mm、2258 nm 二階導數', '與滴定酸度呈線性（n = 4）', '屬可行性研究'].forEach((s, i) => nText(p, s, 420, 300 + i * 45, m('can') + .5 + i * .5, { size: 26, anchor: 'middle' }));
+    nText(p, '不能說', 1180, 240, m('cannot'), { size: 32, fill: BADC, weight: 700, anchor: 'middle' });
+    ['方法已經確效', '準確度是多少', '可以取代滴定'].forEach((s, i) => nText(p, '✗ ' + s, 1180, 300 + i * 45, m('cannot') + .5 + i * .5, { size: 26, anchor: 'middle', fill: BADC }));
+    nText(p, '一定要寫：樣品數、參考方法、每一項做了什麼、還缺什麼', 800, 560, m('must'), { size: 28, anchor: 'middle', weight: 700 });
+    nText(p, '缺的部分 = 下一次實驗要回答的問題', 800, 640, m('next'), { size: 30, anchor: 'middle', fill: GOLD, weight: 700 });
+  }],
+
+  ['wrap', '總結', (m) => {
+    const p = panel(0);
+    nTitle(p, '總結');
+    list9(p, [['確效從用途與目標開始。', 'w1'], ['逐項檢查：分清有證據、初步、沒有。', 'w2'],
+              ['R² 高、交叉驗證誤差小 ≠ 準確：要用獨立樣品。', 'w3'], ['誠實寫出能說什麼、不能說什麼。', 'w4']], 230, 120, 36, m);
+    nText(p, '下一步：走進實驗室，把缺的證據補上', 800, 740, m('end'), { size: 32, fill: GOLD, anchor: 'middle', weight: 700 });
+  }],
+
+  ['final1', '本章練習', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-lod', prompt: ['第 1 章：1 mm 的雜訊 σ = 2.7 × 10⁻⁴，斜率 −9.85 × 10⁻⁴（每 1 % 酸度）。LOD = 3σ ÷ |斜率| 約是多少 %？（小數第二位）'],
+    build: blanks([{ parts: ['LOD ≈ ', { box: '0.82' }, ' %'], why: '3 × 2.7 ÷ 9.85 = 0.822，約 0.82 %。', hint: '10⁻⁴ 會消掉：3 × 2.7 ÷ 9.85。' }]),
+  }, {
+    id: 'p-acc', prompt: ['下列哪一項最能證明準確度？'],
+    build: choice([['用沒參加校正的市售醋（盲樣），比較 NIR 與標定過的滴定'], ['校正線的 R² 很高'], ['留一交叉驗證誤差很小']], 0,
+      '準確度要用獨立樣品和可靠的參考值來比；R² 與交叉驗證都只用到校正樣品本身。',
+      [null, 'R² 只說明點落在直線附近。', '4 個樣品時，交叉驗證誤差很不可靠（第 4 章 PLS 的例子）。']),
+  }, {
+    id: 'p-pure', prompt: ['8 個濃度、每個填樣 3 次，共 24 次。純誤差自由度 = 24 − 8 = ?'],
+    build: blanks([{ parts: ['純誤差自由度 = ', { box: '16' }], why: '每個濃度內 3 − 1 = 2，共 8 × 2 = 16。', hint: '測量數減去濃度數。' }]),
+  }], done, '本章練習') }],
+
+  ['finish', '完成', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+boot();
+</script>
+</body>
+</html>

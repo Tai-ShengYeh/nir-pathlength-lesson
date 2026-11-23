@@ -18,9 +18,9 @@
 'use strict';
 // 第 8 章：參考方法的誤差。數字全由 tools/nir-pathlength/make_data_ch08.py 算出（lib/ch08data.js），
 // 與 exercises/ch08_reference_methods.* 一致。器材允差、力價偏差、−3 % 的例子都是示意，畫面上標明。
-const CHAPTER = { number: 8, title: '參考方法的誤差', minutes: 7, language: 'zh' };
+const CHAPTER = { number: 8, title: '參考方法的誤差', minutes: 7, language: 'zh', next: '../ch09/' };
 
-const RF8 = CH8.refs, BG8 = CH8.budget, AG8 = CH8.agree, N38 = CH8.nir3, FC8 = CH8.factor, AL8 = CH8.aliquot, TN8 = CH8.tonir;
+const NF8 = CH8.nirfit, RF8 = CH8.refs, BG8 = CH8.budget, AG8 = CH8.agree, N38 = CH8.nir3, FC8 = CH8.factor, AL8 = CH8.aliquot, TN8 = CH8.tonir;
 const f2 = v => fmt(v, 2);
 const sgn = v => (v >= 0 ? '+' : '−') + Math.abs(v).toFixed(2);
 const C88 = '#6fb0ff', C44 = GOLD;
@@ -46,20 +46,21 @@ const BEATS = [
 
   ['refs', '四組參考值', (m) => {
     const p = panel(0);
-    nTitle(p, '同樣三瓶醋，四組參考值（酸度 %）');
-    const cols = [['瓶', 230], ['標示', 450], ['Atago 11/02', 680], ['Atago 11/03', 920], ['滴定（一次）', 1160], ['Atago 兩天差', 1400]];
+    nTitle(p, '同樣三瓶醋，五組參考值（酸度 %）');
+    const cols = [['瓶', 190], ['標示', 360], ['Atago 11/02', 550], ['Atago 11/03', 740], ['PAL-30S 11/17', 940], ['滴定（一次）', 1140], ['Atago 兩天差', 1360]];
     cols.forEach(([s, x]) => nText(p, s, x, 230, m('table'), { size: 22, fill: COL.dim, anchor: 'middle' }));
     [0, 1, 2].forEach(i => {
       const y = 300 + i * 70, t0 = m('table') + .4 + i * .3;
-      nText(p, '第 ' + (i + 1) + ' 瓶', 230, y, t0, { size: 28, anchor: 'middle' });
-      nText(p, String(RF8.label[i]), 450, y, t0, { size: 30, anchor: 'middle' });
-      nText(p, f2(RF8.atago_1102[i]), 680, y, t0, { size: 30, anchor: 'middle', fill: C88 });
-      nText(p, f2(RF8.atago_1103[i]), 920, y, t0, { size: 30, anchor: 'middle', fill: C88 });
-      nText(p, f2(RF8.titr[i]), 1160, y, t0, { size: 30, anchor: 'middle', fill: GOLD, weight: 700 });
-      nText(p, RF8.atago_day_diff_pct[i].toFixed(0) + ' %', 1400, y, m('day') + i * .3, { size: 30, anchor: 'middle', fill: BADC, weight: 700 });
+      nText(p, '第 ' + (i + 1) + ' 瓶', 190, y, t0, { size: 28, anchor: 'middle' });
+      nText(p, String(RF8.label[i]), 360, y, t0, { size: 30, anchor: 'middle' });
+      nText(p, f2(RF8.atago_1102[i]), 550, y, t0, { size: 30, anchor: 'middle', fill: C88 });
+      nText(p, f2(RF8.atago_1103[i]), 740, y, t0, { size: 30, anchor: 'middle', fill: C88 });
+      nText(p, RF8.pal30s[i].toFixed(1), 940, y, m('pal') + i * .3, { size: 30, anchor: 'middle', fill: OKC, weight: 700 });
+      nText(p, f2(RF8.titr[i]), 1140, y, t0, { size: 30, anchor: 'middle', fill: GOLD, weight: 700 });
+      nText(p, RF8.atago_day_diff_pct[i].toFixed(0) + ' %', 1360, y, m('day') + i * .3, { size: 30, anchor: 'middle', fill: BADC, weight: 700 });
     });
     nText(p, '滴定 ÷ Atago 11/03：' + RF8.ratio_titr_atago1103.map(f2).join('、') + '　不是固定倍數（第 2 章）', 800, 560, m('ratio'), { size: 26, anchor: 'middle' });
-    nText(p, 'Atago 讀值來自導電度式酸度計（不是折射計）；弱酸導電度不跟濃度成正比，可能是高濃度讀低的原因', 800, 605, m('ratio') + 1.5, { size: 22, anchor: 'middle', fill: COL.dim });
+    nText(p, 'Atago：PAL-Easy ACID 181（導電度式）；弱酸導電度不跟濃度成正比，可能是高濃度讀低的原因。PAL-30S 是折射計', 800, 605, m('ratio') + 1.5, { size: 22, anchor: 'middle', fill: COL.dim });
     nText(p, '這一章問：滴定本身有多準？', 800, 700, m('q'), { size: 34, anchor: 'middle', fill: GOLD, weight: 700 });
   }],
 
@@ -107,23 +108,25 @@ const BEATS = [
   ['agree', '參考值彼此差多少', (m) => {
     const p = panel(0);
     nTitle(p, '換算成應該要用的滴定量（mL）');
-    const cols = [['瓶', 220], ['實際用量', 440], ['照標示', 700], ['照 Atago 11/03', 980], ['照 Atago 11/02', 1260]];
+    const cols = [['瓶', 170], ['實際用量', 330], ['照標示', 540], ['照 Atago 11/03', 780], ['照 Atago 11/02', 1020], ['照 PAL-30S', 1260]];
     cols.forEach(([s, x]) => nText(p, s, x, 225, m('ml'), { size: 22, fill: COL.dim, anchor: 'middle' }));
     [0, 1, 2].forEach(i => {
       const y = 295 + i * 70, hot = i === 0;
-      nText(p, '第 ' + (i + 1) + ' 瓶', 220, y, m('ml') + .3 + i * .2, { size: 28, anchor: 'middle', fill: hot ? GOLD : COL.chalk, weight: hot ? 700 : 500 });
-      nText(p, RF8.V[i].toFixed(1), 440, y, m('ml') + .3 + i * .2, { size: 30, anchor: 'middle', fill: GOLD, weight: 700 });
-      [['label', 700], ['atago_1103', 980], ['atago_1102', 1260]].forEach(([k, x]) => {
+      nText(p, '第 ' + (i + 1) + ' 瓶', 170, y, m('ml') + .3 + i * .2, { size: 28, anchor: 'middle', fill: hot ? GOLD : COL.chalk, weight: hot ? 700 : 500 });
+      nText(p, RF8.V[i].toFixed(1), 330, y, m('ml') + .3 + i * .2, { size: 30, anchor: 'middle', fill: GOLD, weight: 700 });
+      [['label', 540], ['atago_1103', 780], ['atago_1102', 1020], ['pal30s', 1260]].forEach(([k, x]) => {
         const a = AG8[k];
-        nText(p, a.need_mL[i].toFixed(1) + '（' + sgn(a.gap_mL[i]) + '）', x, y, m('gap') + i * .3, { size: 28, anchor: 'middle', fill: BADC });
+        nText(p, a.need_mL[i].toFixed(1) + '（' + sgn(a.gap_mL[i]) + '）', x, y, m('gap') + i * .3, { size: 24, anchor: 'middle', fill: BADC });
       });
     });
-    const lo = Math.min(...['label', 'atago_1103', 'atago_1102'].flatMap(k => AG8[k].gap_in_uV.map(Math.abs)));
-    const hi = Math.max(...['label', 'atago_1103', 'atago_1102'].flatMap(k => AG8[k].gap_in_uV.map(Math.abs)));
-    nText(p, '讀數不確定度約 ' + BG8.uV.toFixed(2) + ' mL；差距是它的 ' + Math.round(lo) + '–' + Math.round(hi) + ' 倍 → 不是讀數誤差', 800, 520, m('gap') + 1.5, { size: 26, anchor: 'middle', weight: 700 });
-    nText(p, '第 1 瓶（標示 3 %）：滴定比其他三個都低 → 最可疑', 800, 590, m('three'), { size: 28, anchor: 'middle', fill: GOLD, weight: 700 });
-    nText(p, 'NIR 3 點線預測 ' + f2(N38.pred) + ' %，但 95 % 區間 ' + Math.round(N38.lo) + ' 到 ' + Math.round(N38.hi) + ' %：證明不了什麼', 800, 650, m('nir'), { size: 24, anchor: 'middle', fill: COL.dim });
-    nText(p, '只滴定一次，出錯也看不出來 → 優先重測，三重複', 800, 730, m('redo'), { size: 30, anchor: 'middle', fill: OKC, weight: 700 });
+    const KS8 = ['label', 'atago_1103', 'atago_1102', 'pal30s'];
+    const lo = Math.min(...KS8.flatMap(k => AG8[k].gap_in_uV.map(Math.abs)));
+    const hi = Math.max(...KS8.flatMap(k => AG8[k].gap_in_uV.map(Math.abs)));
+    nText(p, '讀數不確定度約 ' + BG8.uV.toFixed(2) + ' mL；差距是它的 ' + Math.round(lo) + '–' + Math.round(hi) + ' 倍 → 不是讀數誤差', 800, 500, m('gap') + 1.5, { size: 26, anchor: 'middle', weight: 700 });
+    nText(p, '第 1 瓶（標示 3 %）：滴定比其他四個都低 → 最可疑', 800, 555, m('three'), { size: 28, anchor: 'middle', fill: GOLD, weight: 700 });
+    nText(p, 'NIR 3 點線預測 ' + f2(N38.pred) + ' %，但 95 % 區間 ' + Math.round(N38.lo) + ' 到 ' + Math.round(N38.hi) + ' %：證明不了什麼', 800, 605, m('nir'), { size: 22, anchor: 'middle', fill: COL.dim });
+    nText(p, 'NIR 和 PAL-30S 最一致（R² ' + NF8.pal30s.r2.toFixed(3) + '、RMSECV ' + f2(NF8.pal30s.rmsecv) + ' %）：4 點時只是一致性，不是準確度', 800, 655, m('pal'), { size: 22, anchor: 'middle', fill: OKC });
+    nText(p, '只滴定一次，出錯也看不出來 → 優先重測，三重複', 800, 735, m('redo'), { size: 30, anchor: 'middle', fill: OKC, weight: 700 });
   }],
 
   ['factor', '力價：比例誤差', (m) => {
@@ -221,7 +224,7 @@ const BEATS = [
     id: 'p-khp', prompt: ['要讓 0.1 N NaOH 滴 25 mL，需要秤多少 g 的 KHP（204.22 g/mol）？（小數第二位）'],
     build: blanks([{ parts: ['約 ', { box: '0.51' }, ' g'], why: '0.1 × 0.025 × 204.22 = 0.511 g。', hint: 'mol = 0.1 × 0.025；g = mol × 204.22。' }]),
   }, {
-    id: 'p-redo', prompt: ['第 1 瓶的滴定值比標示和兩天的 Atago 都低。最合理的處理是？'],
+    id: 'p-redo', prompt: ['第 1 瓶的滴定值比標示、兩天的 Atago 和 PAL-30S 都低。最合理的處理是？'],
     build: choice([['優先重測：KHP 標定、做空白、三重複'], ['相信滴定，因為滴定最準'], ['把這瓶從校正中刪掉']], 0,
       '只有一次滴定，無法分辨是醋本身還是操作失誤；重測並三重複才能判斷。',
       [null, '滴定只有在操作正確時才準；單次結果無法確認。', '刪掉不能解決問題，也會讓校正點更少（第 6 章）。']),

@@ -1,4 +1,5 @@
 # 第 8 章「參考方法的誤差」用的數字：寫成 site/nir-pathlength/lib/ch08data.js（確定性計算，無亂數）
+# Atago 讀值：ATAGO PAL-Easy ACID 181（導電度式酸度計）；PAL-30S 是折射計，直接顯示酸度 %（11/17 量，使用者提供：2.8、4.8、10.4）。
 # 滴定資料（另一組學生，11/03）：取 10 mL 醋稀釋到 100 mL，再取 25 mL，以 NaOH 滴定；NaOH 由稱重配製（0.4315 g / 40 / 0.1 L → f = 1.07875，未標定）。
 # 醋酸當量 0.006 g/mL（0.1 N × 60.05 g/mol ÷ 1000）。酸度 (w/v %) = V × f × 0.006 × (100/25) × (100/10)。
 # 器材允差採 A 級玻璃器皿的典型值（示意），標準不確定度 = 允差 / √3（矩形分布）。
@@ -13,8 +14,8 @@ out = {}
 V = np.array([8.8, 17.0, 44.0]); F = 0.4315 / 40 / 0.1 * 10           # 1.07875
 K = F * 0.006 * (100 / 25) * (100 / 10)                                # 每 mL NaOH 的酸度 %
 titr = V * K
-label = np.array([3.0, 5.0, 10.0]); at1 = np.array([3.32, 4.87, 7.45]); at2 = np.array([3.01, 4.12, 6.86])
-out['refs'] = {'label': label.tolist(), 'atago_1102': at1.tolist(), 'atago_1103': at2.tolist(), 'titr': titr.tolist(),
+label = np.array([3.0, 5.0, 10.0]); pal = np.array([2.8, 4.8, 10.4]); at1 = np.array([3.32, 4.87, 7.45]); at2 = np.array([3.01, 4.12, 6.86])
+out['refs'] = {'label': label.tolist(), 'pal30s': pal.tolist(), 'atago_1102': at1.tolist(), 'atago_1103': at2.tolist(), 'titr': titr.tolist(),
                'V': V.tolist(), 'f': F, 'K': K, 'ratio_titr_atago1103': (titr / at2).tolist(),
                'atago_day_diff_pct': ((at1 - at2) / at1 * 100).tolist()}
 
@@ -38,7 +39,7 @@ out['budget'] = {'uV': uV, 'u_read': u_read, 'tol': tol, 'rows': budget,
 
 # ---- 4. 三種參考值彼此差多少？換成滴定體積（mL）看，和讀數不確定度 uV 比
 gaps = {}
-for name, ref in (('label', label), ('atago_1103', at2), ('atago_1102', at1)):
+for name, ref in (('label', label), ('atago_1103', at2), ('atago_1102', at1), ('pal30s', pal)):
     need = ref / K
     gaps[name] = {'need_mL': need.tolist(), 'gap_mL': (need - V).tolist(), 'gap_in_uV': ((need - V) / uV).tolist()}
 out['agree'] = gaps
@@ -56,6 +57,13 @@ A = b * b - kk / sxx; B = -2 * b * (y0 - a) + 2 * kk * xs.mean() / sxx; C = (y0 
 lo = hi = None
 if A > 0:
     r = np.sqrt(B * B - 4 * A * C); lo, hi = sorted([float((-B - r) / (2 * A)), float((-B + r) / (2 * A))])
+fit = {}
+for name, ref in (('label', label), ('atago_1102', at1), ('atago_1103', at2), ('titr', titr), ('pal30s', pal)):
+    x = np.array([0.0, *ref]); e = []
+    for i in range(4):
+        mm = np.arange(4) != i; bb, aa = np.polyfit(x[mm], sig[mm], 1); e.append(float((sig[i] - aa) / bb - x[i]))
+    fit[name] = {'r2': float(np.corrcoef(x, sig)[0, 1] ** 2), 'rmsecv': float(np.sqrt(np.mean(np.square(e))))}
+out['nirfit'] = fit
 out['nir3'] = {'pred': float((y0 - a) / b), 'g': gq, 'lo': lo, 'hi': hi, 'df': 1}
 
 # ---- 5. 力價的比例誤差：參考值全部乘 (1 + e)，R² 不變，斜率與預測同比例偏

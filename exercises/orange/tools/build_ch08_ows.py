@@ -3,8 +3,8 @@ build_ch07_ows.py.   python exercises/orange/tools/make_ch08_references.py   (on
                      python exercises/orange/tools/build_ch08_ows.py
 
 File (ch08_references.csv, 4 rows) -> Data Table (references)
-  File -> Formula (titr_pct_calc = 0.2589 * titr_mL; need_mL_label = label_pct / 0.2589; gap_mL = need - titrated)
-       -> Data Table (gaps in mL), Scatter Plot x4 (d2_2258 vs label / Atago 11-02 / Atago 11-03 / titration)
+  File -> Formula (titr_pct_calc = 0.2589 * titr_mL; need_mL_label = label_pct / 0.2589; gap_mL = need - titrated; same two columns for pal30s_pct)
+       -> Data Table (gaps in mL), Scatter Plot x5 (d2_2258 vs label / Atago 11-02 / Atago 11-03 / PAL-30S 11-17 / titration)
   File -> Select Columns (titr_pct)      -> Linear Regression -> Coefficients -> Data Table, + Test and Score (train)
   File -> Select Columns (titr_pct_f097) -> Linear Regression -> Coefficients -> Data Table, + Test and Score (train)
 Linear Regression has no regularisation: d2_2258 = a + b * reference (direct regression, 4 points incl. water)."""
@@ -31,19 +31,21 @@ tab = B.node(TAB, "Data Table (references)", (260, 40))
 form = B.node(FC, "Formula (titration, gap)", (260, 180), {"currentIndex": 0, "descriptors": [
     ContinuousDescriptor("titr_pct_calc", "0.2589 * titr_mL", 4, True),
     ContinuousDescriptor("need_mL_label", "label_pct / 0.2589", 3, True),
-    ContinuousDescriptor("gap_mL", "label_pct / 0.2589 - titr_mL", 3, True)]})
+    ContinuousDescriptor("gap_mL", "label_pct / 0.2589 - titr_mL", 3, True),
+    ContinuousDescriptor("need_mL_pal30s", "pal30s_pct / 0.2589", 3, True),
+    ContinuousDescriptor("gap_mL_pal30s", "pal30s_pct / 0.2589 - titr_mL", 3, True)]})
 gap = B.node(TAB, "Data Table (gap in mL)", (480, 180))
 scs = [("label", "label_pct", 20), ("Atago 11-02", "atago_1102", 140), ("Atago 11-03", "atago_1103", 260),
-       ("titration", "titr_pct", 380)]
+       ("PAL-30S 11-17", "pal30s_pct", 380), ("titration", "titr_pct", 500)]
 sc_nodes = [B.node(SCAT, "Scatter Plot (d2 vs %s)" % n, (480, 270 + 0 * y + i * 90)) for i, (n, _, y) in enumerate(scs)]
-colA = B.node(SC, "Select Columns (titration)", (260, 660))
-colB = B.node(SC, "Select Columns (titration x 0.97)", (260, 800))
-lrA = B.node(LR, "Linear Regression (titration)", (480, 660), {"learner_name": "LR titration", "reg_type": 0, "fit_intercept": True})
-lrB = B.node(LR, "Linear Regression (titration x 0.97)", (480, 800), {"learner_name": "LR titration x 0.97", "reg_type": 0, "fit_intercept": True})
-cfA = B.node(TAB, "Data Table (slope, titration)", (720, 620))
-cfB = B.node(TAB, "Data Table (slope, titration x 0.97)", (720, 760))
-tsA = B.node(TAS, "Test and Score (titration)", (720, 700), {"resampling": 4})   # 4 == Test on train data
-tsB = B.node(TAS, "Test and Score (titration x 0.97)", (720, 840), {"resampling": 4})
+colA = B.node(SC, "Select Columns (titration)", (260, 760))
+colB = B.node(SC, "Select Columns (titration x 0.97)", (260, 900))
+lrA = B.node(LR, "Linear Regression (titration)", (480, 760), {"learner_name": "LR titration", "reg_type": 0, "fit_intercept": True})
+lrB = B.node(LR, "Linear Regression (titration x 0.97)", (480, 900), {"learner_name": "LR titration x 0.97", "reg_type": 0, "fit_intercept": True})
+cfA = B.node(TAB, "Data Table (slope, titration)", (720, 720))
+cfB = B.node(TAB, "Data Table (slope, titration x 0.97)", (720, 860))
+tsA = B.node(TAS, "Test and Score (titration)", (720, 800), {"resampling": 4})   # 4 == Test on train data
+tsB = B.node(TAS, "Test and Score (titration x 0.97)", (720, 940), {"resampling": 4})
 
 B.link(f, "Data", tab, "Data"); B.link(f, "Data", form, "Data"); B.link(form, "Data", gap, "Data")
 for s in sc_nodes: B.link(form, "Data", s, "Data")
@@ -74,7 +76,7 @@ for t in ("Test and Score (titration)", "Test and Score (titration x 0.97)"):
     print(t, owsutil.test_score_table(B.w(t)))
 
 B.save(OWS, "Ch.8 reference-method errors (acetic acid NIR)",
-       "ch08_references.csv: water + 3 vinegars with label, two Atago readings, NaOH titration volume and the 1 mm "
-       "2258 nm second-derivative signal. Formula: titration acidity 0.2589 x V, mL needed for the label value and the gap "
+       "ch08_references.csv: water + 3 vinegars with label, two Atago readings, PAL-30S refractometer reading (11/17), NaOH titration volume and the 1 mm "
+       "2258 nm second-derivative signal. Formula: titration acidity 0.2589 x V, mL needed for the label value and for the PAL-30S value, and the gaps "
        "in mL. Scatter plots of the signal vs each reference. Linear Regression (no regularisation) on titration vs "
        "titration x 0.97: slope changes by 1/0.97, R2 identical.")

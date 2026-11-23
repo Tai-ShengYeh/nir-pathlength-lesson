@@ -141,7 +141,10 @@ const CHAPTERS = [
     quiz: 3, checks: 74 },
   { id: 'ch08', no: 8, title: '參考方法的誤差', mins: 7, tags: ['滴定', 'KHP 標定', '誤差預算'],
     desc: '參考值有多準？拆開滴定的計算式、做誤差預算，看四組參考值為什麼對不上；力價錯了 R² 也看不出來，要用 KHP 標定、三重複。附滴定紀錄表。',
-    quiz: 3, checks: 117 },
+    quiz: 3, checks: 140 },
+  { id: 'ch09', no: 9, title: '方法確效報告', mins: 7, tags: ['確效', '總表', '報告寫法'],
+    desc: '把前八章整理成確效總表：選擇性、線性、範圍、準確度、精密度、LOD/LOQ、穩健性、系統適用性，分清有證據、初步、沒有，並寫出能說什麼、不能說什麼。附報告範本。',
+    quiz: 3, checks: 57 },
 ];
 const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => v != null && (k === 'text' ? e.textContent = v : e.setAttribute(k, v))); kids.forEach(k => k && e.append(k)); return e; };

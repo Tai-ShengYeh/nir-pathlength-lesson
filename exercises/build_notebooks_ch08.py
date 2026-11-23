@@ -21,17 +21,17 @@ md(r'''
 # 第 8 章 參考方法的誤差：滴定 vs Atago，程式練習
 
 **目標**：前面幾章都把「參考值」當成真值。這一章反過來問：**參考值本身有多準？**
-算出四組參考值、滴定的誤差預算、參考值彼此差多少、NIR 能不能當旁證、NaOH 力價的比例誤差、
+算出五組參考值、滴定的誤差預算、參考值彼此差多少、NIR 能不能當旁證、NaOH 力價的比例誤差、
 滴定量怎麼設計、各種誤差大小比一比，最後產生一份**滴定紀錄表**（`ch08_titration_sheet.csv`）。
 所有計算都是確定性的，**沒有任何亂數**，每個人都應該算出同一個答案。
 
 | 節 | 內容 |
 |---|---|
 | 0 | 載入資料與二階導數（第 4、7 節用到光譜） |
-| 1 | 四組參考值：標示、Atago 11/02、Atago 11/03、滴定 |
+| 1 | 五組參考值：標示、Atago 11/02、Atago 11/03、PAL-30S 11/17、滴定 |
 | 2 | 誤差預算 |
 | 3 | 參考值彼此差多少 |
-| 4 | NIR 旁證很弱 |
+| 4 | NIR 旁證很弱（含五組參考值的 R²／RMSECV） |
 | 5 | 力價的比例誤差 |
 | 6 | 滴定量的設計 |
 | 7 | 誤差比一比 |
@@ -107,9 +107,10 @@ md(r'''
 ''')
 
 md(r'''
-## 1. 四組參考值
+## 1. 五組參考值
 
-- **Atago** 讀值來自 ATAGO PAL-Easy ACID：這是以**導電度**為基礎的酸度計，**不是折射計**；結果是 w/v %。
+- **Atago** 讀值來自 ATAGO PAL-Easy ACID 181：這是以**導電度**為基礎的酸度計，**不是折射計**；結果是 w/v %。
+- **PAL-30S 11/17**：ATAGO PAL-30S 是**折射計**，直接顯示酸度 %（標示 3/5/10 的三瓶：2.8、4.8、10.4）。
 - **滴定**：酸度 (w/v %) = V × f × 0.006 × (100/25) × (100/10)。
   V = NaOH 用量 (mL)；f = NaOH 力價（以稱重配製、未標定）；0.006 g/mL = 每 mL 0.1 N NaOH 對應的醋酸克數；
   100/25 = 100 mL 瓶裡只取 25 mL 滴定；100/10 = 10 mL 醋稀釋到 100 mL。
@@ -121,22 +122,23 @@ V = np.array([8.8, 17.0, 44.0])                           # NaOH 用量（mL）
 f = 0.4315 / 40 / 0.1 * 10                                # 1.07875
 K = f * 0.006 * (100 / 25) * (100 / 10)                   # 每 mL NaOH 對應的酸度 %
 titr = V * K
-label = np.array([3.0, 5.0, 10.0]); at1 = np.array([3.32, 4.87, 7.45]); at2 = np.array([3.01, 4.12, 6.86])
+label = np.array([3.0, 5.0, 10.0]); at1 = np.array([3.32, 4.87, 7.45]); at2 = np.array([3.01, 4.12, 6.86]); pal = np.array([2.8, 4.8, 10.4])
 ratio = titr / at2
 daydiff = (at1 - at2) / at1 * 100
 print('f = 0.4315 / 40 / 0.1 * 10 = %.5f；K = f x 0.006 x 4 x 10 = %.5f %%/mL' % (f, K))
-print('%-6s %7s %10s %10s %9s %9s %11s %12s' % ('bottle', 'label', 'Atago11/02', 'Atago11/03', 'V (mL)', 'titration', 'titr/Atago03', 'day diff (%)'))
+print('%-6s %7s %10s %10s %10s %9s %9s %11s %12s' % ('bottle', 'label', 'Atago11/02', 'Atago11/03', 'PAL30S1117', 'V (mL)', 'titration', 'titr/Atago03', 'day diff (%)'))
 for i in range(3):
-    print('%-6d %7.2f %10.2f %10.2f %9.1f %9.3f %11.4f %12.3f' % (i + 1, label[i], at1[i], at2[i], V[i], titr[i], ratio[i], daydiff[i]))
+    print('%-6d %7.2f %10.2f %10.2f %10.1f %9.1f %9.3f %11.4f %12.3f' % (i + 1, label[i], at1[i], at2[i], pal[i], V[i], titr[i], ratio[i], daydiff[i]))
 eq_exact = 0.1 * 60.05 / 1000
 print('講義用 0.006 g/mL；精確值 0.1 N x 60.05 / 1000 = %.6f g/mL，差 %.2f %%（可忽略）。' % (eq_exact, (eq_exact - 0.006) / eq_exact * 100))
-print('同一批醋，隔一天用同一支 Atago 量，讀值就差 8-15 %；而滴定和標示、Atago 三者又彼此對不上。第 3 節會量化。')
+print('同一批醋，隔一天用同一支 Atago 量，讀值就差 8-15 %；而滴定和標示、Atago、PAL-30S 又彼此對不上。第 3 節會量化。')
 
 chk('f (NaOH factor, unstandardized)', f, 1.079)
 chk('K (% per mL NaOH)', K, 0.2589)
 for i in range(3): chk('titration acidity, bottle %d (V=%.1f mL)' % (i + 1, V[i]), titr[i], [2.278, 4.401, 11.39][i])
 for i in range(3): chk('titration / Atago 11/03, bottle %d' % (i + 1), ratio[i], [0.7569, 1.068, 1.661][i])
 for i in range(3): chk('Atago day difference (%%), bottle %d' % (i + 1), daydiff[i], [9.337, 15.4, 7.919][i])
+for i in range(3): chk('PAL-30S reading 11/17 (%% acid), bottle %d' % (i + 1), pal[i], [2.8, 4.8, 10.4][i])
 chk('0.1 N x 60.05 / 1000 (g/mL)', eq_exact, 0.006005)
 chk('aliquot factor 100/25', 100 / 25, 4)
 chk('dilution factor 100/10', 100 / 10, 10)
@@ -212,7 +214,7 @@ md(r'''
 ''')
 
 code(r'''
-refs = {'label': label, 'atago_1103': at2, 'atago_1102': at1}
+refs = {'label': label, 'atago_1103': at2, 'atago_1102': at1, 'pal30s': pal}
 need = {k: r / K for k, r in refs.items()}
 gap = {k: need[k] - V for k in refs}
 gap_u = {k: gap[k] / uV for k in refs}
@@ -220,35 +222,35 @@ for nm in refs:
     print('[%s] need (mL)：%s' % (nm, ' '.join('%7.2f' % x for x in need[nm])))
     print('%s gap (mL)：%s；gap/uV：%s' % (' ' * (len(nm) + 2), ' '.join('%7.3f' % x for x in gap[nm]), ' '.join('%8.2f' % x for x in gap_u[nm])))
 all_gu = np.abs(np.concatenate([gap_u[k] for k in refs]))
-print('9 個差距的大小介於 %.0f 到 %.0f 倍 uV。' % (all_gu.min(), all_gu.max()))
-print('結論：差距是讀數不確定度的 22-352 倍，不可能是讀滴定管的誤差。')
-print('第 1 瓶（標示 3 %）的滴定值（2.28 %）低於標示、Atago 兩天的讀值，三個都比它高：它是最可疑的一瓶，應該重測；但這不等於『證明滴定錯了』。')
+print('12 個差距的大小介於 %.0f 到 %.0f 倍 uV。' % (all_gu.min(), all_gu.max()))
+print('結論：差距是讀數不確定度的 22-352 倍，不可能是讀滴定管的誤差；PAL-30S 的差距（31-77 倍）也一樣遠大於讀數誤差，只是比其他幾組小。')
+print('第 1 瓶（標示 3 %）的滴定值（2.28 %）低於標示、Atago 兩天、PAL-30S 的讀值，四個都比它高：它是最可疑的一瓶，應該重測；但這不等於『證明滴定錯了』。')
 
 fig, ax = plt.subplots(figsize=(8.6, 4.8))
-w = 0.26
-for k, (nm, col) in enumerate([('label', 'grey'), ('atago_1103', 'steelblue'), ('atago_1102', 'darkorange')]):
-    ax.bar(np.arange(3) + (k - 1) * w, gap_u[nm], w, label={'label': 'label', 'atago_1103': 'Atago 11/03', 'atago_1102': 'Atago 11/02'}[nm], color=col)
+w = 0.2
+for k, (nm, col) in enumerate([('label', 'grey'), ('atago_1103', 'steelblue'), ('atago_1102', 'darkorange'), ('pal30s', 'seagreen')]):
+    ax.bar(np.arange(3) + (k - 1.5) * w, gap_u[nm], w, label={'label': 'label', 'atago_1103': 'Atago 11/03', 'atago_1102': 'Atago 11/02', 'pal30s': 'PAL-30S 11/17'}[nm], color=col)
 ax.axhline(0, color='k', lw=0.8); ax.set_xticks(range(3)); ax.set_xticklabels(['bottle %d (V = %.1f mL)' % (i + 1, V[i]) for i in range(3)])
 ax.set_ylabel('gap / uV  (titre needed - titre observed)'); ax.set_title('Gap of each reference to the titration, in reading uncertainties', fontsize=10); ax.legend(fontsize=8)
 plt.tight_layout(); plt.show()
 
-key_need = {'label': [11.59, 19.31, 38.62], 'atago_1103': [11.63, 15.91, 26.5], 'atago_1102': [12.82, 18.81, 28.78]}
-key_gap = {'label': [2.787, 2.312, -5.375], 'atago_1103': [2.826, -1.087, -17.5], 'atago_1102': [4.023, 1.81, -15.22]}
-key_gu = {'label': [56.13, 46.56, -108.2], 'atago_1103': [56.9, -21.88, -352.4], 'atago_1102': [81.01, 36.45, -306.5]}
+key_need = {'label': [11.59, 19.31, 38.62], 'atago_1103': [11.63, 15.91, 26.5], 'atago_1102': [12.82, 18.81, 28.78], 'pal30s': [10.81, 18.54, 40.17]}
+key_gap = {'label': [2.787, 2.312, -5.375], 'atago_1103': [2.826, -1.087, -17.5], 'atago_1102': [4.023, 1.81, -15.22], 'pal30s': [2.015, 1.54, -3.83]}
+key_gu = {'label': [56.13, 46.56, -108.2], 'atago_1103': [56.9, -21.88, -352.4], 'atago_1102': [81.01, 36.45, -306.5], 'pal30s': [40.57, 31.01, -77.12]}
 for nm in refs:
     for i in range(3): chk('%s: need (mL), bottle %d' % (nm, i + 1), need[nm][i], key_need[nm][i])
     for i in range(3): chk('%s: gap (mL), bottle %d' % (nm, i + 1), gap[nm][i], key_gap[nm][i])
     for i in range(3): chk('%s: gap / uV, bottle %d' % (nm, i + 1), gap_u[nm][i], key_gu[nm][i])
 chk('smallest |gap| / uV', all_gu.min(), 21.88)
 chk('largest |gap| / uV', all_gu.max(), 352.4)
-chk('bottle 1: references above the titration (of 3)', sum(int(gap[k][0] > 0) for k in refs), 3)
+chk('bottle 1: references above the titration (of 4)', sum(int(gap[k][0] > 0) for k in refs), 4)
 show_checks('第 3 節')
 ''')
 
 md(r'''
 ### 動手改改看（第 3 節）
 1. 如果只看 gap_in_uV，哪一個瓶子、哪一個參考的差最大？這能說明是哪一種方法錯嗎？
-2. 第 3 瓶（V = 44 mL）三個 gap 都是負的。這個瓶子的滴定值（11.39 %）比標示 10 % 還高，可能的原因有哪些？
+2. 第 3 瓶（V = 44 mL）四個 gap 都是負的。這個瓶子的滴定值（11.39 %）比標示 10 % 還高，可能的原因有哪些？
 3. 為什麼說『最可疑』不等於『證明錯了』？還缺什麼證據？
 ''')
 
@@ -277,10 +279,32 @@ print('Fieller 95 %% 區間：%.2f 到 %.2f %%' % (lo3, hi3))
 print('結論：區間從 -14 到 13 %，什麼都證明不了；它同時包含『滴定對』與『標示對』。')
 print('而且這是循環論證：用 NIR 來評斷參考方法，可是 NIR 的校正又是靠這些參考方法建立的。NIR 不能當裁判。')
 
+# ---- 4 點（含水）下，NIR 訊號對五組參考值的一致程度：R^2 與留一法 RMSECV ----
+refs5 = {'label': np.r_[0.0, label], 'atago_1102': np.r_[0.0, at1], 'atago_1103': np.r_[0.0, at2], 'titr': np.r_[0.0, titr], 'pal30s': np.r_[0.0, pal]}
+def loo_rmsecv(x, y):
+    e = []
+    for i in range(4):
+        m = np.arange(4) != i; mm = fit_line(x[m], y[m])
+        e.append((y[i] - mm['a']) / mm['b'] - x[i])
+    return float(np.sqrt(np.mean(np.square(e))))
+nf_r2 = {k: float(np.corrcoef(x, sig)[0, 1] ** 2) for k, x in refs5.items()}
+nf_rm = {k: loo_rmsecv(x, sig) for k, x in refs5.items()}
+print('\n4 點（水 + 3 瓶，1 mm、2258 nm）對五組參考值各做一條直線（y = 訊號，x = 參考值）；RMSECV = 留一法預測誤差（% 酸度）：')
+print('%-12s %8s %12s' % ('reference', 'R^2', 'RMSECV (%)'))
+for nm in refs5: print('%-12s %8.4f %12.4f' % (nm, nf_r2[nm], nf_rm[nm]))
+print('NIR 與 PAL-30S 最一致（R^2 0.998、RMSECV 0.26 %），其次是標示與滴定，兩天的 Atago 最差。')
+print('但只有 4 個點：這是『一致性』，不是『準確度』；PAL-30S 自己準不準沒有被驗證。')
+print('折射計量的是折射率，溶液裡其他溶解物也會影響折射率，所以讀值不一定只反映醋酸。')
+
 chk('NIR prediction of bottle 1 (%)', pred3, 3.091)
 chk('g statistic', g3, 0.6414)
 chk('Fieller lower limit (%)', lo3, -14.25)
 chk('Fieller upper limit (%)', hi3, 12.66)
+key_r2 = {'label': 0.9955, 'atago_1102': 0.9342, 'atago_1103': 0.9555, 'titr': 0.9898, 'pal30s': 0.9984}
+key_rm = {'label': 0.6769, 'atago_1102': 2.182, 'atago_1103': 1.653, 'titr': 1.152, 'pal30s': 0.2559}
+for nm in refs5: chk('NIR fit R^2, reference %s (4 pts)' % nm, nf_r2[nm], key_r2[nm])
+for nm in refs5: chk('NIR fit RMSECV (%% acid), reference %s' % nm, nf_rm[nm], key_rm[nm])
+chk('reference with lowest RMSECV (5 = PAL-30S)', list(refs5).index(min(nf_rm, key=nf_rm.get)) + 1, 5)
 show_checks('第 4 節')
 ''')
 
@@ -289,6 +313,7 @@ md(r'''
 1. 預測值 3.09 % 剛好接近標示 3 %、遠離滴定 2.28 %。這算不算『NIR 支持標示』？看區間再回答。
 2. 自由度 1 的 t(0.975) 是多少？如果有 8 個校正點（自由度 6），區間會縮小到多少量級？
 3. 為什麼用 NIR 評斷參考方法是循環論證？
+4. NIR 與 PAL-30S 的 R² 是 0.998，這能證明 PAL-30S 比較準嗎？為什麼只有 4 個點時，這只是『一致』而不是『準確』？
 ''')
 
 md(r'''
@@ -485,10 +510,10 @@ for c in checks:
 
 md(r'''
 ### 總結
-1. 四組參考值（標示、Atago 兩天、滴定）互相對不上；Atago 兩天就差 8–15 %。Atago 是電導式酸度計，不是折射計。
+1. 五組參考值（標示、Atago 兩天、PAL-30S 11/17、滴定）互相對不上；Atago 兩天就差 8–15 %。Atago（PAL-Easy ACID 181）是電導式酸度計，PAL-30S 是折射計。
 2. 滴定器材的不確定度只有 0.2–0.6 %（約 0.013–0.021 % 酸度）；未標定 NaOH 的力價偏差（可能偏低 2–5 %）是另一種比例偏差。
-3. 參考值之間的差距是讀數不確定度的 22–352 倍，不是讀數誤差；第 1 瓶（標示 3 %）的滴定值最可疑，應重測。
-4. NIR 旁證太弱（區間 −14 到 13 %），而且循環論證，不能當裁判。
+3. 參考值之間的差距是讀數不確定度的 22–352 倍，不是讀數誤差；第 1 瓶（標示 3 %）的滴定值比四個參考都低，最可疑，應重測。
+4. NIR 旁證太弱（區間 −14 到 13 %），而且循環論證，不能當裁判；NIR 與 PAL-30S 最一致（R² 0.998、RMSECV 0.26 %），但 4 點只是一致性，不是準確度。
 5. 力價的比例誤差不影響 R²，只讓斜率與預測同比例偏；用 KHP 標定（20 mL 需約 0.41 g）。
 6. 滴定量要設計到 15–40 mL；低酸度樣品加大 D（20 mL），高酸度樣品減小 D（5 mL）。
 7. 比誤差時要分清楚實測與假設；NIR 殘差有一大部分可能來自參考值。

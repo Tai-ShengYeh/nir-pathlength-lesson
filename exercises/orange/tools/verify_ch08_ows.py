@@ -22,6 +22,7 @@ L = json.loads(js[js.index("{"): js.rindex("}") + 1])
 wf = W("File")
 print("File loaded:", wf.recent_paths[0].relpath if wf.recent_paths else None, "| rows:", len(wf.data))
 assert len(wf.data) == 4
+assert "pal30s_pct" in [m.name for m in wf.data.domain.metas]
 print("messages:", owsutil.messages(model))
 
 # --- Formula: titr_pct_calc = 0.2589 * V ; gap in mL vs the lesson
@@ -35,6 +36,13 @@ print("need_mL_label", np.round(need, 3), "lesson", L["agree"]["label"]["need_mL
 print("gap_mL        ", np.round(gap, 3), "lesson", L["agree"]["label"]["gap_mL"])
 assert np.allclose(need[1:], L["agree"]["label"]["need_mL"], atol=0.01)
 assert np.allclose(gap[1:], L["agree"]["label"]["gap_mL"], atol=0.01)
+
+needp, gapp = col("need_mL_pal30s"), col("gap_mL_pal30s")
+print("need_mL_pal30s", np.round(needp, 3), "lesson", L["agree"]["pal30s"]["need_mL"])
+print("gap_mL_pal30s ", np.round(gapp, 3), "lesson", L["agree"]["pal30s"]["gap_mL"])
+assert np.allclose(needp[1:], L["agree"]["pal30s"]["need_mL"], atol=0.01)
+assert np.allclose(gapp[1:], L["agree"]["pal30s"]["gap_mL"], atol=0.01)
+assert np.allclose(col("pal30s_pct")[1:], L["refs"]["pal30s"])
 
 # --- regressions: slope (Orange) vs numpy vs lesson
 fa = L["factor"]
@@ -52,16 +60,17 @@ for key, xv, exp in (("titration", x, fa["slope"]), ("titration x 0.97", xs, fa[
     assert abs(b - bn) < 1e-5 and abs(r2 - r2n) < 1e-6 and abs(b - exp) < 5e-4 and abs(r2 - fa["r2"]) < 5e-4
 print("slope ratio scaled/unscaled: %.5f (1/0.97 = %.5f)" % (fa["slope_scaled"] / fa["slope"], 1 / 0.97))
 for t in ("Scatter Plot (d2 vs label)", "Scatter Plot (d2 vs Atago 11-02)", "Scatter Plot (d2 vs Atago 11-03)",
-          "Scatter Plot (d2 vs titration)"):
+          "Scatter Plot (d2 vs PAL-30S 11-17)", "Scatter Plot (d2 vs titration)"):
     s = W(t); print(t, "| x", s.attr_x.name, "y", s.attr_y.name)
 
 if args.img:
     os.makedirs(args.img, exist_ok=True)
     P = lambda n: os.path.join(args.img, n)
-    owsbuild.shot(model, "Data Table (references)", P("ch08_orange_table.png"), (1000, 260))
-    owsbuild.shot(model, "Data Table (gap in mL)", P("ch08_orange_gap.png"), (1750, 260))
+    owsbuild.shot(model, "Data Table (references)", P("ch08_orange_table.png"), (1500, 260))
+    owsbuild.shot(model, "Data Table (gap in mL)", P("ch08_orange_gap.png"), (2400, 260))
     owsbuild.shot(model, "Scatter Plot (d2 vs titration)", P("ch08_orange_scatter_titr.png"), (800, 560), hide_legend=True)
     owsbuild.shot(model, "Scatter Plot (d2 vs Atago 11-03)", P("ch08_orange_scatter_atago.png"), (800, 560), hide_legend=True)
+    owsbuild.shot(model, "Scatter Plot (d2 vs PAL-30S 11-17)", P("ch08_orange_scatter_pal30s.png"), (800, 560), hide_legend=True)
     owsbuild.shot(model, "Data Table (slope, titration)", P("ch08_orange_slope_titr.png"), (760, 200))
     owsbuild.shot(model, "Data Table (slope, titration x 0.97)", P("ch08_orange_slope_f097.png"), (760, 200))
     owsbuild.shot(model, "Test and Score (titration x 0.97)", P("ch08_orange_testscore.png"), (1400, 380))

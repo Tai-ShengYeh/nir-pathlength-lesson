@@ -38,7 +38,7 @@ const PACKS = {
  },
  "ch05": {
   "zip": "packs/nir_ch05_prediction.zip",
-  "size": 210299,
+  "size": 210308,
   "ows": "exercises/orange/ch05_prediction.ows",
   "guide": "exercises/orange/ch05_orange_guide.md",
   "r": "exercises/ch05_prediction_uncertainty.R",
@@ -65,15 +65,24 @@ const PACKS = {
  },
  "ch08": {
   "zip": "packs/nir_ch08_reference_methods.zip",
-  "size": 370437,
+  "size": 435249,
   "ows": "exercises/orange/ch08_references.ows",
   "guide": "exercises/orange/ch08_orange_guide.md",
   "r": "exercises/ch08_reference_methods.R",
   "ipynb": "exercises/ch08_reference_methods.ipynb",
   "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch08_reference_methods_colab.ipynb"
  },
+ "ch09": {
+  "zip": "packs/nir_ch09_validation.zip",
+  "size": 364537,
+  "ows": "exercises/orange/ch09_validation.ows",
+  "guide": "exercises/orange/ch09_orange_guide.md",
+  "r": "exercises/ch09_validation_report.R",
+  "ipynb": "exercises/ch09_validation_report.ipynb",
+  "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch09_validation_report_colab.ipynb"
+ },
  "all": {
   "zip": "packs/nir_all_chapters.zip",
-  "size": 4163536
+  "size": 4554497
  }
 };
