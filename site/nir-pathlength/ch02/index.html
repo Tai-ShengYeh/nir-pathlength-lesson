@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>參考值與實驗設計</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/zh-hant.js"></script>
+<script src="../lib/nirdata.js"></script>
+<script src="../lib/nirkit.js"></script>
+<script src="audio/zh/timings.js"></script>
+<script>
+'use strict';
+// 第 2 章：參考值與實驗設計。數字來自 analysis/光徑選擇報告.md 的「補充（11/03）」與「資料品質提醒」，
+// 由 tools 與 exercises/ch02_reference_design.* 重算核對。
+const CHAPTER = { number: 2, title: '參考值與實驗設計', minutes: 7, language: 'zh' };
+
+/* ---------- 參考值 ---------- */
+const NAOH_F = 1.07875, NAOH_V = [8.8, 17, 44];
+const TITR = NAOH_V.map(v => v * NAOH_F * 0.24);           // 酸度 % = V × f × 0.006 × (100/25) ÷ 10 × 100
+const REFS = [                                             // [名稱, 三瓶的值, 顏色]
+  ['標示', [3, 5, 10], '#cfcfcf'],
+  ['Atago 11/02', [3.32, 4.87, 7.45], '#6fb0ff'],
+  ['Atago 11/03', [3.01, 4.12, 6.86], '#a9d0ff'],
+  ['滴定', TITR, GOLD],
+];
+const RATIO_TA = TITR.map((t, i) => t / REFS[2][1][i]);    // 0.76 1.07 1.66
+const R2REF = [                                            // 1 mm、n = 4（含水）的 R²：[2258 nm, 1670 nm]
+  ['標示', 0.9955, 0.9983], ['滴定', 0.9898, 0.9866], ['Atago 11/03', 0.9555, 0.9633], ['Atago 11/02', 0.9342, 0.9448],
+];
+const REFC = { '標示': REFS[0][2], 'Atago 11/02': REFS[1][2], 'Atago 11/03': REFS[2][2], '滴定': GOLD };
+const BOTTLES = ['標示 3%', '標示 5%', '標示 10%'];
+const SIM = { A: 6.7, B: 3.1 };                            // 斜率相對標準差 %（蒙地卡羅，填樣誤差 5%，見練習第 5 節）
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', '參考值與實驗設計', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, '第 2 章 · 近紅外光譜定量醋酸', { x: 800, y: 320, size: 30, fill: COL.dim, anchor: 'middle' });
+    T(g, '參考值與實驗設計', { x: 800, y: 440, size: 96, weight: 700, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = T(scene, '橫軸的數字，可靠嗎？', { x: 800, y: 560, size: 42, fill: GOLD, anchor: 'middle', o: 0 });
+    show(r, m('sub'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['recap', '校正線的兩個軸', (m) => {
+    const p = panel(0);
+    nTitle(p, '校正線：橫軸是參考值');
+    const P = nPlot(p, [150, 170, 760, 420], [0, 8], [0, 10],
+      { xt: [0, 2, 4, 6, 8], xl: '參考值 %', yt: [0, 2, 4, 6, 8, 10], yl: '光譜訊號（二階導數 ×10⁻³）', t0: m('axes') - .4 });
+    const yhat = x => FIT1.icpt + FIT1.slope * x;
+    nCurve(P, [0, 8], [yhat(0), yhat(8)], COL.dim, m('axes') + .6, 1, 3, { 'stroke-dasharray': '10 8' });
+    CONC.forEach((c, i) => nDot(P.g, P.px(c), P.py(D2K[i]), 11, SAMPC[i], m('axes') + .8 + i * .3));
+    CONC.forEach((c, i) => {
+      if (!i) return;
+      const e = path(P.g, `M${P.px(c - 1.1)} ${P.py(D2K[i])}H${P.px(c + 1.1)}M${P.px(c - 1.1)} ${P.py(D2K[i]) - 10}v20M${P.px(c + 1.1)} ${P.py(D2K[i]) - 10}v20`,
+        { stroke: BADC, 'stroke-width': 3, fill: 'none' }, { o: 0 });
+      show(e, m('err') + .3 + i * .3);
+    });
+    nText(p, '橫軸不準 → 斜率與預測都跟著錯', 530, 650, m('err') + 1.2, { size: 28, fill: BADC, anchor: 'middle', weight: 700 });
+    [['標示', '瓶上印的酸度'], ['Atago 酸度計', '以導電度換算'], ['手動滴定', 'NaOH 中和']].forEach(([a, b], i) => {
+      const g = G(p, { o: 0, x: 30 });
+      const c = [REFS[0][2], REFS[1][2], GOLD][i];
+      mk('rect', { x: 1010, y: 200 + i * 140, width: 470, height: 110, rx: 14, fill: 'none', stroke: c, 'stroke-width': 3 }, g);
+      T(g, a, { x: 1040, y: 248 + i * 140, size: 32, weight: 700, fill: c });
+      T(g, b, { x: 1040, y: 288 + i * 140, size: 24, fill: COL.dim });
+      tw(g, { o: 1, x: 0 }, m('three') + 1 + i * 1.3, .6, out);
+    });
+  }],
+
+  ['titr', '滴定怎麼算', (m) => {
+    const p = panel(0);
+    nTitle(p, '手動滴定：從 mL 到 %');
+    const step = (x, top, bot, t0, c = COL.chalk) => {
+      const g = G(p, { o: 0, y: 16 });
+      mk('rect', { x: x - 120, y: 170, width: 240, height: 150, rx: 16, fill: 'none', stroke: c, 'stroke-width': 3 }, g);
+      T(g, top, { x, y: 236, size: 34, weight: 700, anchor: 'middle', fill: c });
+      T(g, bot, { x, y: 282, size: 24, anchor: 'middle', fill: COL.dim });
+      tw(g, { o: 1, y: 0 }, t0, .6, out); return g;
+    };
+    const arrow = (x, t0) => { const g = G(p, { o: 0 }); path(g, `M${x - 40} 245H${x + 26}`, { stroke: COL.dim, 'stroke-width': 4 }); nArrowHead(g, x + 40, 245, 'r', COL.dim, 16); show(g, t0); };
+    step(260, '10 mL 醋', '取樣', m('dil'));
+    arrow(450, m('dil') + .8); step(640, '→ 100 mL', '稀釋 10 倍', m('dil') + 1.2);
+    arrow(830, m('ali')); step(1020, '取 25 mL', '1/4 的稀釋液', m('ali') + .4);
+    arrow(1210, m('ali') + 1.2); step(1390, 'NaOH V mL', '滴到終點', m('ali') + 1.6, GOLD);
+    nText(p, '每 mL 0.1 N NaOH ≙ 0.006 g 醋酸　　力價 f = 1.0788', 800, 400, m('eq'), { size: 28, anchor: 'middle' });
+    nText(p, '酸度（g/100 mL）= V × f × 0.006 × 4 ÷ 10 × 100 = V × f × 0.24', 800, 460, m('eq') + 3, { size: 32, anchor: 'middle', weight: 700, fill: GOLD });
+    BOTTLES.forEach((b, i) => {
+      const y = 560 + i * 52, t0 = m('calc') + .4 + i * 1.6;
+      nText(p, b, 430, y, t0, { size: 28, fill: COL.dim });
+      nText(p, NAOH_V[i] + ' mL', 720, y, t0 + .3, { size: 28, anchor: 'end' });
+      nText(p, '→', 800, y, t0 + .5, { size: 28, anchor: 'middle', fill: COL.dim });
+      nText(p, TITR[i].toFixed(2) + ' %', 1000, y, t0 + .7, { size: 30, anchor: 'end', fill: GOLD, weight: 700 });
+    });
+  }],
+
+  ['q1', '小測驗', () => {}, { ask: done => quiz({ x: 1070, y: 470, w: 500, cls: 'side' }, [{
+    id: 'c-titr', prompt: ['若某瓶醋用了 20 mL NaOH（f = 1.0788），酸度是多少 %？（四捨五入到小數第一位）'],
+    build: blanks([{ parts: ['酸度 = ', { box: '5.2' }, ' %'], why: '20 × 1.0788 × 0.24 = 5.18，約 5.2 %。', hint: '酸度 = V × f × 0.24。' }]),
+  }], done) }],
+
+  ['compare', '三種參考值', (m) => {
+    const p = panel(0);
+    nTitle(p, '同一瓶醋，三種參考值');
+    const P = nPlot(p, [150, 170, 900, 430], [-.5, 2.5], [0, 12], { yt: [0, 2, 4, 6, 8, 10, 12], yl: '酸度 %', t0: m('bars') - .4 });
+    const [, by, , bh] = P.box;
+    BOTTLES.forEach((b, i) => {
+      nText(p, b, P.px(i), by + bh + 36, m('bars') - .2, { size: 26, anchor: 'middle', weight: 600 });
+      REFS.forEach(([nm, vals, c], k) => {
+        const x = P.px(i) + (k - 1.5) * 58, t0 = m('bars') + .4 + k * .7 + i * .15;
+        nBar(P.g, x, 46, P.py(0), P.py(vals[i]), c, t0);
+        nText(p, vals[i].toFixed(vals[i] >= 10 ? 1 : 2), x, P.py(vals[i]) - 10, t0 + .6, { size: 18, anchor: 'middle', fill: c });
+      });
+    });
+    nLegend(p, REFS.map(([nm, , c]) => [nm, c]), 1120, 230, m('bars') + 1, 24);
+    const hl = (i, t0, color) => { const e = mk('rect', { x: P.px(i) - 140, y: by - 10, width: 280, height: bh + 10, rx: 10, fill: 'none', stroke: color, 'stroke-width': 3 }, P.g); put(e, { o: 0 }); tw(e, { o: 1 }, t0, .4); hide(e, t0 + 5, .4); };
+    hl(0, m('low'), GOLD); hl(2, m('high'), GOLD);
+    nText(p, '滴定 2.28 % 低於 Atago', 1120, 420, m('low') + .5, { size: 24, fill: GOLD });
+    nText(p, '10% 瓶：滴定 11.39 %', 1120, 470, m('high') + .5, { size: 24, fill: GOLD });
+    nText(p, 'Atago 只讀到 6.9–7.5 %', 1120, 504, m('high') + 1.2, { size: 24, fill: GOLD });
+    nText(p, '兩天的 Atago 相差 8–15 %', 1120, 570, m('rep'), { size: 26, fill: REFS[1][2], weight: 700 });
+  }],
+
+  ['ratio', '比值判斷', (m) => {
+    const p = panel(0);
+    nTitle(p, '用比值區分：比例誤差？還是不是？');
+    const P = nPlot(p, [150, 200, 560, 380], [-.5, 2.5], [0, 2], { yt: [0, .5, 1, 1.5, 2], yf: v => String(v), yl: '滴定 ÷ Atago(11/03)', t0: m('ratio') - .4 });
+    const [, by, , bh] = P.box;
+    BOTTLES.forEach((b, i) => {
+      nText(p, b, P.px(i), by + bh + 34, m('ratio') - .2, { size: 24, anchor: 'middle' });
+      nBar(P.g, P.px(i), 90, P.py(0), P.py(RATIO_TA[i]), GOLD, m('ratio') + .6 + i * .9);
+      nText(p, RATIO_TA[i].toFixed(2), P.px(i), P.py(RATIO_TA[i]) - 12, m('ratio') + 1.2 + i * .9, { size: 26, anchor: 'middle', weight: 700, fill: GOLD });
+    });
+    nHLine(P, 1.05, OKC, m('prop'));
+    nText(p, '虛線：若是力價錯，三瓶比值相同', P.box[0] + 12, P.py(1.95), m('prop') + .4, { size: 22, fill: OKC, weight: 600 });
+    const x = nText(p, '✗ 比值一路變大 → 不是力價問題', 150, 680, m('not'), { size: 28, fill: BADC, weight: 700 });
+    // 右：滴定 vs Atago 散布
+    const Q = nPlot(p, [900, 200, 560, 380], [0, 12], [0, 12], { xt: [0, 4, 8, 12], xl: 'Atago %', yt: [0, 4, 8, 12], yl: '滴定 %', t0: m('ratio') + 1 });
+    nCurve(Q, [0, 12], [0, 12], COL.dim, m('ratio') + 1.4, .8, 2, { 'stroke-dasharray': '8 6' });
+    nText(p, 'y = x', Q.px(11.2), Q.py(11.2) + 34, m('ratio') + 2, { size: 20, fill: COL.dim, anchor: 'end' });
+    REFS[2][1].forEach((a, i) => nDot(Q.g, Q.px(a), Q.py(TITR[i]), 11, GOLD, m('ratio') + 2.4 + i * .4));
+    nCurve(Q, [0, 12], [0, 12 * 1.05], OKC, m('prop') + 1, .8, 2.5);
+    nText(p, '力價錯：仍是直線', Q.px(8.5), Q.py(8.5 * 1.05) + 44, m('prop') + 1.6, { size: 20, fill: OKC, anchor: 'middle' });
+    nText(p, 'Atago 以導電度換算；弱酸的導電度', 900, 680, m('why'), { size: 24, fill: COL.chalk });
+    nText(p, '不與濃度成正比（可能原因，需查型號說明書）', 900, 716, m('why') + .4, { size: 24, fill: COL.dim });
+  }],
+
+  ['q2', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-prop', prompt: ['若 NaOH 力價高估了 5 %，三瓶的滴定值會怎樣？'],
+    build: choice([['都偏高 5 %，彼此比值不變，校正線的線性不受影響'], ['只有高濃度那瓶偏高'], ['三瓶偏差不同，線性變差']], 0,
+      '力價是乘在每一瓶上的同一個係數，屬於比例誤差：只改變絕對值與斜率，不改變線性。',
+      [null, '力價對三瓶都一樣，不會只影響高濃度。', '同一個係數乘上去，三瓶偏差的「倍數」相同，線性不變。']),
+  }], done) }],
+
+  ['nir', '光譜站哪邊', (m) => {
+    const p = panel(0);
+    nTitle(p, '1 mm 光譜對各參考值的線性');
+    const P = nPlot(p, [170, 190, 900, 420], [-.5, 3.5], [.9, 1], { yt: [.9, .92, .94, .96, .98, 1], yf: v => v.toFixed(2), yl: 'R²（n = 4，含水）', t0: m('r2') - .4 });
+    const [, by, , bh] = P.box;
+    R2REF.forEach(([nm, a, b], i) => {
+      const c = REFC[nm], t0 = i < 2 ? m('best') + i * .7 : m('worst') + (i - 2) * .7;
+      nText(p, nm, P.px(i), by + bh + 36, m('r2') + .3, { size: 24, anchor: 'middle', fill: c, weight: 600 });
+      nBar(P.g, P.px(i) - 40, 64, P.py(.9), P.py(a), c, t0);
+      nBar(P.g, P.px(i) + 40, 64, P.py(.9), P.py(b), c, t0 + .3, .8, { 'fill-opacity': .55 });
+      nText(p, a.toFixed(3), P.px(i) - 40, P.py(a) - 10, t0 + .7, { size: 18, anchor: 'middle', fill: c });
+      nText(p, b.toFixed(3), P.px(i) + 40, P.py(b) - 10, t0 + 1, { size: 18, anchor: 'middle', fill: c });
+    });
+    nText(p, '深色：2258 nm', 1130, 250, m('two'), { size: 24, weight: 700 });
+    nText(p, '淺色：1670 nm', 1130, 290, m('two') + .3, { size: 24, fill: COL.dim, weight: 700 });
+    nText(p, '兩個獨立吸收帶，結論一致', 1130, 340, m('two') + .8, { size: 24, fill: OKC });
+    nText(p, 'n = 4、每瓶只填一次：', 1130, 450, m('caution'), { size: 24, fill: BADC, weight: 700 });
+    nText(p, '只是「一致的跡象」，', 1130, 488, m('caution') + .4, { size: 24 });
+    nText(p, '不是統計證明', 1130, 526, m('caution') + .4, { size: 24 });
+  }],
+
+  ['repro', '重複性與填樣', (m) => {
+    const p = panel(0);
+    nTitle(p, '儀器穩定，誤差來自填樣');
+    const P = nPlot(p, [130, 150, 880, 450], [1340, 2550], [0, 1.6],
+      { xt: [1400, 1600, 1800, 2000, 2200, 2400], xl: 'nm', yt: [0, .4, .8, 1.2, 1.6], yl: '吸光度（0.25 mm）', t0: .2 });
+    nCurve(P, WL, NIR.A['0.25'][0], SAMPC[0], m('rep') - .2, 1.2, 3);
+    nCurve(P, WL, NIR.A_water025_rep2, COL.chalk, m('rep') + 1, 1.2, 1.5, { 'stroke-dasharray': '6 5' });
+    nLegend(p, [['水（第 1 次）', SAMPC[0]], ['水（第 2 次）', COL.chalk]], 1060, 190, m('rep') + .5, 22);
+    nText(p, '兩次差的均方根 = 0.0012 AU', 1060, 290, m('rep') + 2.5, { size: 24, fill: OKC, weight: 700 });
+    nCurve(P, WL, NIR.A['0.25'][2], SAMPC[2], m('fill'), 1.2, 3);
+    nLegend(p, [['4.87%（0.25 mm）', SAMPC[2]]], 1060, 360, m('fill') + .3, 22);
+    const i40 = WL.findIndex(w => w > 1935);
+    const ar = path(P.g, `M${P.px(WL[i40])} ${P.py(NIR.A['0.25'][0][i40]) - 4}V${P.py(NIR.A['0.25'][2][i40]) + 4}`, { stroke: BADC, 'stroke-width': 4 }, { o: 0 });
+    show(ar, m('fill') + 1.4);
+    nText(p, '水帶縮小約 15 %', P.px(WL[i40]) + 16, P.py(1.2), m('fill') + 1.8, { size: 24, fill: BADC, weight: 700 });
+    nText(p, '醋 ≈ 水，水帶不該少這麼多', 1060, 440, m('cause'), { size: 24 });
+    nText(p, '→ 填樣或光徑誤差', 1060, 476, m('cause') + .6, { size: 24, fill: BADC });
+    nText(p, '同樣差 0.04 mm（舉例）：', 1060, 560, m('inv'), { size: 24, fill: COL.dim });
+    nText(p, '0.25 mm → 16 %　1 mm → 4 %', 1060, 598, m('inv') + .6, { size: 26, fill: GOLD, weight: 700 });
+  }],
+
+  ['q3', '小測驗', () => {}, { ask: done => quiz({ x: 990, y: 130, w: 580, cls: 'side' }, [{
+    id: 'c-source', prompt: ['水重複量測只差 0.0012 AU，但 4.87% 的水帶少了約 15 %。誤差主要來自？'],
+    build: choice([['儀器雜訊'], ['填樣或光徑的誤差'], ['醋酸濃度的效應']], 1,
+      '儀器本身很穩，同一樣品重複量測只差 0.0012 AU；水帶整體縮小，最可能是樣品槽的實際厚度或填樣不同。',
+      ['儀器雜訊只有 0.0012 AU，遠小於 15 % 的變化。', null, '醋的主成分是水；而且 7.45% 的水帶沒有縮小，濃度效應解釋不了。']),
+  }], done) }],
+
+  ['titfix', '改進滴定', (m) => {
+    const p = panel(0);
+    nTitle(p, '滴定可以怎麼改進？');
+    [['用 KHP 標定 NaOH', 'NaOH 會吸濕、吸 CO₂，不是一級標準品', 'f1'],
+     ['每瓶三重複＋空白試驗', '目前每瓶只滴一次、沒扣空白', 'f2'],
+     ['10% 瓶改取 10 mL 稀釋液', '44 mL 接近 50 mL 滴定管；改後約 17.6 mL', 'f3'],
+     ['分清 w/v 與 w/w', '量的是體積；醋密度約 1.01，差異 < 2 %', 'f4']].forEach(([a, b, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 125, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: OKC }, g);
+      T(g, '✓', { x: 200, y: -1, size: 30, fill: COL.board, weight: 800, anchor: 'middle' });
+      T(g, a, { x: 260, size: 36, weight: 700 });
+      T(g, b, { x: 260, y: 42, size: 24, fill: COL.dim });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+
+  ['design', '下一次的實驗', (m) => {
+    const p = panel(0);
+    nTitle(p, '設計下一次的實驗（1 mm）');
+    // 現況 4 × 1
+    nText(p, '現在：4 濃度 × 1 次 = 4 次', 360, 190, m('now'), { size: 28, anchor: 'middle', weight: 700, fill: COL.dim });
+    CONC.forEach((c, i) => nDot(p, 180 + i * 120, 290, 18, SAMPC[i], m('now') + .5 + i * .25));
+    CONC.forEach((c, i) => nText(p, c + '%', 180 + i * 120, 345, m('now') + .8, { size: 20, anchor: 'middle', fill: COL.dim }));
+    // 建議 8 × 3
+    nText(p, '建議：8 濃度 × 3 次 = 24 次', 1120, 190, m('next'), { size: 28, anchor: 'middle', weight: 700, fill: OKC });
+    for (let c = 0; c < 8; c++) {
+      nText(p, c + '%', 820 + c * 86, 440, m('next') + .6, { size: 20, anchor: 'middle', fill: COL.dim });
+      for (let r = 0; r < 3; r++) {
+        const t0 = r === 0 ? m('next') + .5 + c * .15 : m('rep3') + .3 + (r - 1) * .5 + c * .05;
+        nDot(p, 820 + c * 86, 250 + r * 60, 16, `hsl(${255}, ${40 + c * 7}%, ${82 - c * 4}%)`, t0);
+      }
+    }
+    nText(p, '同一瓶醋稀釋　·　每個濃度重新填樣 3 次', 1120, 490, m('rep3') + .6, { size: 22, anchor: 'middle', fill: COL.dim });
+    nText(p, '參考值：KHP 標定、三重複的滴定', 1120, 540, m('ref'), { size: 26, anchor: 'middle', fill: GOLD, weight: 700 });
+    // 模擬：斜率不確定度
+    nText(p, '模擬：斜率的相對不確定度（填樣誤差 5 %）', 150, 620, m('sim'), { size: 24, fill: COL.chalk });
+    [['現在', SIM.A, BADC], ['建議', SIM.B, OKC]].forEach(([nm, v, c], i) => {
+      const y = 670 + i * 50;
+      nText(p, nm, 150, y + 9, m('sim') + .3 + i * .8, { size: 24, fill: c });
+      const b = mk('rect', { x: 240, y: y - 14, width: 0, height: 28, fill: c }, p);
+      tw(b, { a_width: v * 80 }, m('sim') + .5 + i * .8, .7, out);
+      nText(p, v.toFixed(1) + ' %', 250 + v * 80, y + 9, m('sim') + 1 + i * .8, { size: 24, fill: c, weight: 700 });
+    });
+    nText(p, '約減半', 1000, 705, m('sim') + 2.6, { size: 34, fill: GOLD, weight: 800 });
+  }],
+
+  ['wrap', '總結', (m) => {
+    const p = panel(0);
+    nTitle(p, '總結');
+    [['參考值的誤差，就是模型的誤差。', 'w1'], ['用比值區分比例誤差與非比例誤差。', 'w2'],
+     ['儀器很穩，誤差主要來自填樣：要重複填樣。', 'w3'], ['同瓶稀釋、8 濃度 × 3 次、KHP 標定的滴定。', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: GOLD }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 38, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+    nText(p, '下一步：做練習，再用 R 或 Python 模擬兩種實驗設計', 800, 740, m('end'), { size: 30, fill: GOLD, anchor: 'middle' });
+  }],
+
+  ['final1', '本章練習', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-aliquot', prompt: ['10% 瓶取 25 mL 稀釋液時用了 44 mL NaOH。若改取 10 mL 稀釋液，約需多少 mL？'],
+    build: blanks([{ parts: ['約 ', { box: '17.6' }, ' mL'], why: '用量與取樣體積成正比：44 × 10 ÷ 25 = 17.6 mL，落在 50 mL 滴定管的舒適範圍。', hint: '44 × (10 ÷ 25) = ?' }]),
+  }, {
+    id: 'p-ratio', prompt: ['另一組資料：滴定 ÷ 參考值 = 1.05、1.05、1.05。這最像哪一種誤差？'],
+    build: choice([['比例誤差（例如 NaOH 力價算錯）'], ['參考方法在高濃度讀低'], ['填樣誤差']], 0,
+      '三瓶差同一個倍數，正是比例誤差的特徵；它不影響線性。',
+      [null, '若高濃度讀低，比值會隨濃度改變，不會三瓶都一樣。', '填樣誤差是每次隨機的，不會讓三瓶剛好差同一個倍數。']),
+  }, {
+    id: 'p-kind', prompt: ['把每一種誤差分類：'],
+    build: grid([
+      { parts: ['NaOH 力價算錯'], ans: ['prop'], why: '同一個係數乘在每一瓶上。' },
+      { parts: ['把 w/v 當成 w/w（密度固定）'], ans: ['prop'], why: '每瓶都除以同一個密度。' },
+      { parts: ['酸度計在高濃度讀低'], ans: ['non'], why: '偏差隨濃度改變。' },
+      { parts: ['某次填樣有氣泡'], ans: ['non'], why: '只影響那一次，隨機出現。' },
+    ], [['prop', '比例誤差'], ['non', '非比例誤差']], { multi: false, text: true }),
+  }], done, '本章練習') }],
+
+  ['finish', '完成', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+boot();
+</script>
+</body>
+</html>

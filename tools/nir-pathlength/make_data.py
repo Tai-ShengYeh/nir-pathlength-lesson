@@ -16,6 +16,9 @@ for p in paths:
         r2=1-np.sum((sig-pred)**2)/np.sum((sig-sig.mean())**2)
         out['band'].setdefault(name,{})[str(p)]={'i':i,'d2':[float('%.4g'%v) for v in sig],'slope':float('%.4g'%sl),'icpt':float('%.4g'%ic),'r2':round(r2,4)}
     if p==1: out['d2_1mm']=[[float('%.4g'%v) for v in s] for s in d2]
+d_all=pd.read_csv(os.path.join(root,'data','spectra_long.csv'))
+r2=d_all[(d_all.path_mm==0.25)&(d_all['sample']=='water')&(d_all.replicate==2)].sort_values('wavelength_nm').absorbance.values
+out['A_water025_rep2']=[round(v,4) for v in r2]
 with open(os.path.join(root,'site','nir-pathlength','lib','nirdata.js'),'w',encoding='utf-8') as f:
     f.write('// 由 tools/nir-pathlength/make_data.py 產生，請勿手改\nconst NIR = '+json.dumps(out,ensure_ascii=False,separators=(',',':'))+';\n')
 b=out['band']['2258']; print({p:(b[str(p)]['slope'],round(b[str(p)]['slope']/b['0.25']['slope'],2),b[str(p)]['r2']) for p in paths})
