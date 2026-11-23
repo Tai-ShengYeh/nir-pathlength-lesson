@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>預測與不確定度</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/zh-hant.js"></script>
+<script src="../lib/nirdata.js"></script>
+<script src="../lib/nirkit.js"></script>
+<script src="../lib/ch05data.js"></script>
+<script src="audio/zh/timings.js"></script>
+<script>
+'use strict';
+// 第 5 章：預測未知樣品與不確定度。數字全由 tools/nir-pathlength/make_data_ch05.py 算出（lib/ch05data.js），
+// 與 exercises/ch05_prediction_uncertainty.* 一致。單一波長 2258 nm（1 mm、二階導數 ×10⁻³）、反向校正、Fieller 區間。
+const CHAPTER = { number: 5, title: '預測未知樣品與不確定度', minutes: 8, language: 'zh' };
+
+const SG5 = CH5.signal, AT5 = CH5.atago, TI5 = CH5.titr, UNK_Y = CH5.y0;
+const C4 = CH5.four.calib, C3 = CH5.hide3.calib;
+const UNKC = '#ff9fb0', BANDC = 'rgba(111, 176, 255, .16)';
+const f2 = v => fmt(v, 2);
+// 預測帶：在濃度 x 處，新量一次的訊號 95 % 範圍
+const bandY = (c, x, sgn, m = 1) => c.a + c.b * x + sgn * c.t * c.s * Math.sqrt(1 / m + 1 / c.n + (x - c.xbar) ** 2 / c.sxx);
+function calPlot(p, xr, yr, t0, xt) {
+  return nPlot(p, [150, 170, 900, 470], xr, yr, { xt, xl: '酸度 %（Atago）', yt: [-8, -4, 0, 4, 8, 12].filter(v => v >= yr[0] && v <= yr[1]), yl: '訊號：2258 nm 二階導數（×10⁻³）', t0 });
+}
+function interval(P, lo, hi, y, color, t0, label, dash) {     // 在 x 軸上方畫一段區間
+  const e = path(P.g, `M${P.px(lo)} ${y}H${P.px(hi)}M${P.px(lo)} ${y - 10}v20M${P.px(hi)} ${y - 10}v20`,
+    { stroke: color, 'stroke-width': 4, fill: 'none', ...(dash ? { 'stroke-dasharray': '8 6' } : {}) }, { d: 0 });
+  draw(e, t0, .7);
+  if (label) nText(P.g, label, P.px(hi) + 12, y + 8, t0 + .5, { size: 20, fill: color });
+}
+
+const BEATS = [
+  ['intro', '預測與不確定度', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, '第 5 章 · 近紅外光譜定量醋酸', { x: 800, y: 320, size: 30, fill: COL.dim, anchor: 'middle' });
+    T(g, '預測未知樣品與不確定度', { x: 800, y: 440, size: 84, weight: 700, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = T(scene, '答案要怎麼寫？', { x: 800, y: 560, size: 42, fill: GOLD, anchor: 'middle', o: 0 });
+    show(r, m('sub'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['recap', '用校正線讀濃度', (m) => {
+    const p = panel(0);
+    nTitle(p, '用校正線讀出濃度');
+    const P = calPlot(p, [-.5, 8.5], [0, 10], m('line') - .3, [0, 2, 4, 6, 8]);
+    AT5.forEach((c, i) => nDot(P.g, P.px(c), P.py(SG5[i]), 12, SAMPC[i], m('line') + .3 + i * .25));
+    nCurve(P, [-.5, 8.5], [C4.a - .5 * C4.b, C4.a + 8.5 * C4.b], GOLD, m('line') + 1.2, 1, 3);
+    const x0 = (UNK_Y - C4.a) / C4.b;
+    const ar = path(P.g, `M${P.box[0]} ${P.py(UNK_Y)}H${P.px(x0)}V${P.py(0)}`, { stroke: UNKC, 'stroke-width': 3, fill: 'none', 'stroke-dasharray': '10 7' }, { d: 0 });
+    draw(ar, m('use') + .5, 1.6);
+    nDot(P.g, P.px(x0), P.py(UNK_Y), 10, UNKC, m('use') + 1.2);
+    nText(p, '未知樣品的訊號', 1160, 260, m('use'), { size: 26, fill: UNKC });
+    nText(p, '→ 找到直線 → 讀出濃度', 1160, 300, m('use') + 1, { size: 26, fill: UNKC });
+    nText(p, '這個數字', 1160, 430, m('q'), { size: 34, fill: GOLD, weight: 700 });
+    nText(p, '有多可靠？', 1160, 480, m('q') + .3, { size: 34, fill: GOLD, weight: 700 });
+  }],
+
+  ['hide', '藏起一瓶', (m) => {
+    const p = panel(0);
+    nTitle(p, '把 4.87 % 那瓶藏起來，當作未知樣品');
+    const P = calPlot(p, [-.5, 8.5], [0, 10], .2, [0, 2, 4, 6, 8]);
+    [0, 1, 3].forEach((i, k) => nDot(P.g, P.px(AT5[i]), P.py(SG5[i]), 12, SAMPC[i], .4 + k * .2));
+    const hid = nDot(P.g, P.px(AT5[2]), P.py(SG5[2]), 12, 'none', m('hide'), { stroke: SAMPC[2], 'stroke-width': 3, 'stroke-dasharray': '4 4' });
+    nCurve(P, [-.5, 8.5], [C3.a - .5 * C3.b, C3.a + 8.5 * C3.b], GOLD, m('hide') + 1.5, 1, 3);
+    const x0 = CH5.hide3.pred.x0;
+    const ar = path(P.g, `M${P.box[0]} ${P.py(SG5[2])}H${P.px(x0)}V${P.py(0)}`, { stroke: UNKC, 'stroke-width': 3, fill: 'none', 'stroke-dasharray': '10 7' }, { d: 0 });
+    draw(ar, m('pred'), 1.4);
+    nText(p, '3 點校正 → 預測 ' + f2(x0) + ' %', 1140, 250, m('pred') + .8, { size: 28, fill: UNKC, weight: 700 });
+    const tick = (x, c, t0) => { const e = path(P.g, `M${P.px(x)} ${P.py(0) - 18}V${P.py(0) + 4}`, { stroke: c, 'stroke-width': 4 }, { o: 0 }); show(e, t0); };
+    tick(AT5[2], REFC_AT, m('ref')); tick(TI5[2], GOLD, m('ref') + 1.4);
+    nText(p, 'Atago：4.87 %', 1140, 330, m('ref'), { size: 26, fill: REFC_AT });
+    nText(p, '滴定：' + f2(TI5[2]) + ' %', 1140, 370, m('ref') + 1.4, { size: 26, fill: GOLD });
+    nText(p, '相差 0.7–1.2 個百分點', 1140, 420, m('ref') + 3, { size: 24, fill: COL.dim });
+    nText(p, '範圍該寫多寬？', 1140, 540, m('q'), { size: 34, fill: GOLD, weight: 700 });
+  }],
+
+  ['slope', '先檢查斜率', (m) => {
+    const p = panel(0);
+    nTitle(p, '算區間之前：斜率真的不是零嗎？');
+    nText(p, 'g = t² s² ÷ ( b² · Sxx )', 800, 220, m('g'), { size: 48, anchor: 'middle', weight: 700, fill: GOLD });
+    nText(p, 'g < 1：斜率確定，區間有上下限；越接近 0 越好', 800, 280, m('g') + 2, { size: 26, anchor: 'middle', fill: COL.dim });
+    const cols = [['', 260], ['校正點', 520], ['自由度', 720], ['t（95 %）', 920], ['g', 1110], ['區間', 1300]];
+    cols.forEach(([s, x]) => nText(p, s, x, 380, m('three') - .5, { size: 24, fill: COL.dim, anchor: 'middle' }));
+    const row = (y, name, c, res, color, t0) => {
+      [[name, 260], [String(c.n), 520], [String(c.n - 2), 720], [c.t.toFixed(1), 920], [c.g.toFixed(2), 1110], [res, 1300]].forEach(([s, x], k) =>
+        nText(p, s, x, y, t0 + k * .25, { size: 30, anchor: 'middle', fill: k === 5 || k === 4 ? color : COL.chalk, weight: k >= 4 ? 700 : 500 }));
+    };
+    row(450, '藏起一瓶', C3, '無上下限', BADC, m('three'));
+    nText(p, 'g > 1：連「直線有斜率」都無法證明 → 3 個點不夠預測', 800, 560, m('none'), { size: 28, anchor: 'middle', fill: BADC, weight: 700 });
+    row(660, '四瓶全用', C4, '算得出來', OKC, m('none') + 4);
+  }],
+
+  ['q1', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-g', prompt: ['用 3 個點建校正線，算出 g = 4.98。這代表什麼？'],
+    build: choice([['斜率無法確定不是零，95 % 預測區間沒有上下限'], ['區間大約是 ±4.98 %'], ['預測值很準']], 0,
+      'g ≥ 1 時，斜率的不確定度大到「斜率 = 0」也說不定，反推濃度的區間就沒有邊界。',
+      [null, 'g 不是區間寬度，而是「斜率夠不夠確定」的指標。', 'g 太大，代表預測幾乎沒有根據。']),
+  }], done) }],
+
+  ['four', '四點校正的區間', (m) => {
+    const p = panel(0);
+    nTitle(p, '四瓶校正：未知樣品訊號 4.20');
+    const P = calPlot(p, [-3, 17], [-9, 13], .2, [0, 4, 8, 12, 16]);
+    const xs = Array.from({ length: 81 }, (_, i) => -3 + i * .25);
+    const clip = v => Math.max(-9, Math.min(13, v)), up = xs.map(x => clip(bandY(C4, x, 1))), dn = xs.map(x => clip(bandY(C4, x, -1)));
+    const poly = path(P.g, nLineD(P, xs, up) + nLineD(P, xs.slice().reverse(), dn.slice().reverse()).replace('M', 'L') + 'Z', { fill: BANDC, stroke: 'none' }, { o: 0 });
+    tw(poly, { o: 1 }, m('g'), .8);
+    nCurve(P, [-3, 17], [C4.a - 3 * C4.b, C4.a + 17 * C4.b], GOLD, .4, 1, 3);
+    AT5.forEach((c, i) => nDot(P.g, P.px(c), P.py(SG5[i]), 10, SAMPC[i], .6 + i * .2));
+    nText(p, '藍色：新量一次訊號的 95 % 範圍', 1100, 210, m('g') + .5, { size: 22, fill: '#6fb0ff' });
+    nText(p, 'g = ' + C4.g.toFixed(2) + ' < 1', 1100, 250, m('g'), { size: 26, fill: OKC, weight: 700 });
+    const hl = path(P.g, `M${P.box[0]} ${P.py(UNK_Y)}H${P.box[0] + P.box[2]}`, { stroke: UNKC, 'stroke-width': 3, 'stroke-dasharray': '10 7' }, { d: 0 });
+    draw(hl, m('y0'), 1);
+    const pr = CH5.four.pred;
+    nDot(P.g, P.px(pr.x0), P.py(UNK_Y), 10, UNKC, m('y0') + .8);
+    nText(p, '預測 ' + f2(pr.x0) + ' %', 1100, 330, m('y0') + 1, { size: 28, fill: UNKC, weight: 700 });
+    const yb = P.box[1] + P.box[3] - 30;
+    interval(P, pr.lo, pr.hi, yb, BADC, m('band'));
+    nText(p, '精確（Fieller）：', 1100, 400, m('band'), { size: 24, fill: BADC });
+    nText(p, f2(pr.lo) + ' 到 ' + f2(pr.hi) + ' %', 1100, 438, m('band') + .4, { size: 28, fill: BADC, weight: 700 });
+    interval(P, pr.x0 - pr.simple, pr.x0 + pr.simple, yb - 34, COL.dim, m('simple'), null, true);
+    nText(p, '簡化公式：± ' + pr.simple.toFixed(2) + '（低估上限）', 1100, 490, m('simple'), { size: 22, fill: COL.dim });
+    const p3 = CH5.four.pred_m3;
+    interval(P, p3.lo, p3.hi, yb - 68, OKC, m('m3'));
+    nText(p, '量 3 次取平均：', 1100, 560, m('m3'), { size: 24, fill: OKC });
+    nText(p, f2(p3.lo) + ' 到 ' + f2(p3.hi) + ' %', 1100, 598, m('m3') + .4, { size: 28, fill: OKC, weight: 700 });
+    nText(p, '還是太寬', 1100, 640, m('m3') + 3, { size: 24, fill: COL.dim });
+  }],
+
+  ['q2', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-asym', prompt: ['四點校正預測 4.96 %，精確區間是 −1.68 到 15.55 %，簡化公式寫成 ± 4.94。哪一個說法正確？'],
+    build: choice([['精確區間不對稱；簡化公式低估了上限'], ['兩者一樣，寫 ± 4.94 就好'], ['區間有負值，代表算錯了']], 0,
+      'g 不小時（這裡 0.65），反推濃度的區間會明顯不對稱，簡化公式只在 g 很小時才可靠。',
+      [null, '簡化公式的上限是 9.90 %，精確的是 15.55 %，差很多。', '負值代表區間寬到包含 0 以下，說明預測幾乎沒有資訊，不是算錯。']),
+  }], done) }],
+
+  ['limits', '殘差與下限', (m) => {
+    const p = panel(0);
+    nTitle(p, '為什麼這麼寬？看殘差');
+    const L = CH5.lod_res.atago, sres = C4.s / Math.abs(C4.b);
+    const P = nPlot(p, [170, 190, 820, 420], [-.5, 3.5], [0, 12], { yt: [0, 2, 4, 6, 8, 10, 12], yl: '酸度 %', t0: m('res') - .4 });
+    const [, by, , bh] = P.box;
+    [['第 1 章 LOD\n（儀器雜訊）', .8, OKC, m('ch1')], ['殘差標準差\n（換算濃度）', sres, '#6fb0ff', m('res')],
+     ['殘差 LOD\n3s ÷ |b|', L[0], GOLD, m('lod')], ['殘差 LOQ\n10s ÷ |b|', L[1], BADC, m('lod') + 2]].forEach(([nm, v, c, t0], i) => {
+      nm.split('\n').forEach((s, k) => nText(p, s, P.px(i), by + bh + 34 + k * 28, t0, { size: 20, anchor: 'middle', fill: c, weight: 600 }));
+      nBar(P.g, P.px(i), 110, P.py(0), P.py(v), c, t0 + .2);
+      nText(p, (i ? v.toFixed(1) : '< 1') + ' %', P.px(i), P.py(v) - 12, t0 + .8, { size: 24, anchor: 'middle', fill: c, weight: 700 });
+    });
+    nHLine(P, 7.45, COL.dim, m('lod') + 3);
+    nText(p, '校正範圍上限 7.45 %', P.box[0] + 10, P.py(7.45) - 10, m('lod') + 3.2, { size: 20, fill: COL.dim });
+    nText(p, '儀器很穩；殘差主要是', 1080, 300, m('ch1') + 1, { size: 26 });
+    nText(p, '填樣誤差 ＋ 參考值誤差', 1080, 340, m('ch1') + 1.5, { size: 26, fill: GOLD, weight: 700 });
+    nText(p, '第 4 章 PLS：RMSECV 0.32 %', 1080, 450, m('ch4'), { size: 26, fill: '#ff9fb0', weight: 700 });
+    nText(p, '多個波長可能大幅改善', 1080, 490, m('ch4') + 1, { size: 24 });
+    nText(p, '（n = 4，仍是初步結果）', 1080, 528, m('ch4') + 2, { size: 22, fill: COL.dim });
+  }],
+
+  ['improve', '縮小區間', (m) => {
+    const p = panel(0);
+    nTitle(p, '怎麼把區間縮小？（同一個訊號 4.20）');
+    const P = nPlot(p, [330, 200, 1000, 400], [-2, 16], [-.5, 3.5], { xt: [0, 2, 4, 6, 8, 10, 12, 14], xl: '酸度 %', yt: [], t0: .2 });
+    const rows = [['Atago、4 點', CH5.four.pred, BADC, .3], ['滴定、4 點', CH5.four_titr.pred, GOLD, m('titr')],
+                  ['Atago、8×3、量 3 次', CH5.design.atago_m3, '#6fb0ff', m('both')], ['滴定、8×3、量 3 次', CH5.design.titr_m3, OKC, m('both') + 2.5]];
+    rows.forEach(([nm, r, c, t0], i) => {
+      const y = P.py(3 - i);
+      nText(p, nm, 310, y + 8, t0, { size: 24, anchor: 'end', fill: c, weight: 600 });
+      interval(P, r.lo, r.hi, y, c, t0 + .2);
+      nDot(P.g, P.px(r.x0), y, 7, c, t0 + .6);
+      nText(p, f2(r.lo) + ' – ' + f2(r.hi), P.px(r.hi) + 14, y + 8, t0 + .8, { size: 22, fill: c });
+    });
+    nText(p, '8×3 = 第 2 章設計：0–7 %、8 濃度、每個填樣 3 次', 330, 690, m('design'), { size: 24, fill: COL.dim });
+    nText(p, '示意：假設斜率與殘差不變；要用新實驗驗證', 330, 736, m('caution'), { size: 24, fill: BADC });
+  }],
+
+  ['report', '怎麼報告', (m) => {
+    const p = panel(0);
+    nTitle(p, '結果要怎麼寫？');
+    const g = G(p, { o: 0 });
+    mk('rect', { x: 150, y: 170, width: 1300, height: 150, rx: 16, fill: 'none', stroke: GOLD, 'stroke-width': 3 }, g);
+    T(g, '酸度 5.0 %（95 % 區間 −1.7 至 15.5 %）', { x: 190, y: 236, size: 38, weight: 700, fill: GOLD });
+    T(g, '1 mm、2258 nm 二階導數，單變量反向校正；n = 4；參考值 Atago；未知樣品量 1 次', { x: 190, y: 286, size: 24, fill: COL.dim });
+    show(g, m('fmt'));
+    [['預測值 ＋ 區間 ＋ 信心水準', 'fmt', 1.5], ['校正樣品數、參考值、波長或模型', 'how', 0], ['位數跟著不確定度走：區間好幾 %，不寫到小數第三位', 'digits', 0],
+     ['低於定量下限：只說「有偵測到」，不報數字', 'loq', 0]].forEach(([s, mark, d], i) => {
+      const r = G(p, { x: -16, y: 410 + i * 90, o: 0 });
+      mk('circle', { cx: 200, cy: -10, r: 20, fill: OKC }, r);
+      T(r, '✓', { x: 200, y: -1, size: 24, fill: COL.board, weight: 800, anchor: 'middle' });
+      T(r, s, { x: 240, size: 32, weight: 600 });
+      tw(r, { o: 1, x: 0 }, m(mark) + d, .6);
+    });
+  }],
+
+  ['q3', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-report', prompt: ['下列哪一種報告方式最恰當？（四點校正，區間 −1.68 到 15.55 %）'],
+    build: choice([['酸度 5.0 %（95 % 區間 −1.7 至 15.5 %，n = 4，Atago 參考值，2258 nm）'], ['酸度 4.960 %'], ['酸度 4.96 ± 0.01 %']], 0,
+      '要寫出區間、信心水準與校正條件；區間這麼寬，位數也不必多。',
+      [null, '沒有區間，讀者不知道它有多不可靠；小數第三位也沒有意義。', '± 0.01 遠小於真正的不確定度，會誤導讀者。']),
+  }], done) }],
+
+  ['wrap', '總結', (m) => {
+    const p = panel(0);
+    nTitle(p, '總結');
+    [['先檢查斜率：g ≥ 1 就沒有區間。', 'w1'], ['用精確（Fieller）區間，它不一定對稱。', 'w2'],
+     ['區間寬度主要來自填樣與參考值，不是儀器。', 'w3'], ['改善：更好的參考值、更多濃度、重複量測。', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: GOLD }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 38, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+    nText(p, '下一步：用 R、Python 或 Orange 做練習', 800, 740, m('end'), { size: 30, fill: GOLD, anchor: 'middle' });
+  }],
+
+  ['final1', '本章練習', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-pred', prompt: ['校正線：訊號 = 9.09 − 0.985 × 酸度。未知樣品的訊號是 4.20，預測酸度是多少 %？（小數第一位）'],
+    build: blanks([{ parts: ['酸度 ≈ ', { box: '5.0' }, ' %'], why: '(4.20 − 9.09) ÷ (−0.985) = 4.96，約 5.0 %。', hint: '酸度 = (訊號 − 截距) ÷ 斜率。' }]),
+  }, {
+    id: 'p-m3', prompt: ['未知樣品重新填樣量 3 次取平均，區間會怎樣？'],
+    build: choice([['變窄，但校正線本身的不確定度仍在，不會縮到零'], ['縮成原來的 1/3'], ['不會改變']], 0,
+      '量 3 次只縮小公式中「1/m」那一項；校正點太少、殘差太大造成的部分還在（−1.68–15.55 → 0.78–13.08）。',
+      [null, '只有其中一項變小，整體不會縮成 1/3。', '1/m 那一項會變小，所以區間會變窄。']),
+  }, {
+    id: 'p-source', prompt: ['下列做法，主要改善的是哪一部分？'],
+    build: grid([
+      { parts: ['改用 KHP 標定的滴定值當參考值'], ans: ['cal'], why: '參考值誤差小，殘差就小。' },
+      { parts: ['未知樣品重新填樣量 3 次'], ans: ['unk'], why: '縮小的是未知樣品本身的那一項（1/m）。' },
+      { parts: ['增加到 8 個濃度、每個填樣 3 次'], ans: ['cal'], why: 'n 與 Sxx 變大，校正線更確定。' },
+      { parts: ['同一瓶未知醋多量幾次取平均'], ans: ['unk'], why: '同樣是 1/m 那一項。' },
+    ], [['cal', '校正線'], ['unk', '未知樣品的量測']], { multi: false, text: true }),
+  }], done, '本章練習') }],
+
+  ['finish', '完成', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+const REFC_AT = '#6fb0ff';
+
+boot();
+</script>
+</body>
+</html>

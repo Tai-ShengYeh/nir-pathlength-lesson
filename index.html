@@ -130,6 +130,9 @@ const CHAPTERS = [
   { id: 'ch04', no: 4, title: 'PCA 與 PLS', mins: 8, tags: ['PCA', 'PLS', 'Orange'],
     desc: '一次看整段光譜：PCA 找出最大的變化是光徑，PLS 把誤差從 2.18 % 降到 0.32 %，再看係數確認合乎化學。',
     quiz: 3, checks: 29 },
+  { id: 'ch05', no: 5, title: '預測未知樣品與不確定度', mins: 8, tags: ['預測區間', 'Fieller', '報告格式'],
+    desc: '校正線做好了，量到一瓶新的醋，答案要怎麼寫？先檢查斜率，再算精確的預測區間，看清楚 4 個校正點的極限與改善方法。',
+    quiz: 3, checks: 39 },
 ];
 const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => v != null && (k === 'text' ? e.textContent = v : e.setAttribute(k, v))); kids.forEach(k => k && e.append(k)); return e; };

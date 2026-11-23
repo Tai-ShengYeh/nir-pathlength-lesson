@@ -2,7 +2,7 @@
 const PACKS = {
  "ch01": {
   "zip": "packs/nir_ch01_pathlength.zip",
-  "size": 1505227,
+  "size": 1505527,
   "ows": "exercises/orange/ch01_pathlength.ows",
   "guide": "exercises/orange/ch01_orange_guide.md",
   "r": "exercises/pathlength_exercise.R",
@@ -11,7 +11,7 @@ const PACKS = {
  },
  "ch02": {
   "zip": "packs/nir_ch02_references.zip",
-  "size": 647072,
+  "size": 647372,
   "ows": "exercises/orange/ch02_references.ows",
   "guide": "exercises/orange/ch02_orange_guide.md",
   "r": "exercises/ch02_reference_design.R",
@@ -20,7 +20,7 @@ const PACKS = {
  },
  "ch03": {
   "zip": "packs/nir_ch03_wavelength_pitfall.zip",
-  "size": 444545,
+  "size": 444845,
   "ows": "exercises/orange/ch03_wavelength_pitfall.ows",
   "guide": "exercises/orange/ch03_orange_guide.md",
   "r": "exercises/ch03_wavelength_pitfall.R",
@@ -29,15 +29,24 @@ const PACKS = {
  },
  "ch04": {
   "zip": "packs/nir_ch04_pca_pls.zip",
-  "size": 385299,
+  "size": 385599,
   "ows": "exercises/orange/ch04_pca_pls.ows",
   "guide": "exercises/orange/ch04_orange_guide.md",
   "r": "exercises/ch04_pca_pls.R",
   "ipynb": "exercises/ch04_pca_pls.ipynb",
   "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch04_pca_pls_colab.ipynb"
  },
+ "ch05": {
+  "zip": "packs/nir_ch05_prediction.zip",
+  "size": 210252,
+  "ows": "exercises/orange/ch05_prediction.ows",
+  "guide": "exercises/orange/ch05_orange_guide.md",
+  "r": "exercises/ch05_prediction_uncertainty.R",
+  "ipynb": "exercises/ch05_prediction_uncertainty.ipynb",
+  "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch05_prediction_uncertainty_colab.ipynb"
+ },
  "all": {
   "zip": "packs/nir_all_chapters.zip",
-  "size": 2874281
+  "size": 3046604
  }
 };
