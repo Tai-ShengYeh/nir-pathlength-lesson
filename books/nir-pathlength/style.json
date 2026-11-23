@@ -50,6 +50,11 @@
       "chapter": "ch01",
       "date": "2026-11-23",
       "why": "user approved the pilot as delivered: real-data plots, one beat per foundation (2nd derivative, regression, LOD, LOOCV), side cards for long Chinese choices"
+    },
+    {
+      "chapter": "ch02",
+      "date": "2026-11-23",
+      "why": "accepted implicitly: user asked for the next chapter without requesting changes (no explicit approval)"
     }
   ]
 }

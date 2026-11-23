@@ -4,11 +4,12 @@
 
 | 教材 | 連結 |
 |---|---|
-| 🎬 動畫課程（第 1 章 9 分鐘、第 2 章 7 分鐘，有旁白與小測驗） | https://tai-shengyeh.github.io/nir-pathlength-lesson/ |
+| 🎬 動畫課程（第 1 章 9 分鐘、第 2、3 章各 7 分鐘，有旁白與小測驗） | https://tai-shengyeh.github.io/nir-pathlength-lesson/ |
 | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/pathlength_exercise_colab.ipynb) | Python 練習，一鍵在 Colab 開啟（資料已內嵌） |
 | Jupyter 練習 | [exercises/pathlength_exercise.ipynb](exercises/pathlength_exercise.ipynb) |
 | R 練習 | [exercises/pathlength_exercise.R](exercises/pathlength_exercise.R)（只用 base R） |
 | 第 2 章練習：參考值與實驗設計 | [R](exercises/ch02_reference_design.R) · [Jupyter](exercises/ch02_reference_design.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch02_reference_design_colab.ipynb) |
+| 第 3 章練習：波長挑選的陷阱 | [R](exercises/ch03_wavelength_pitfall.R) · [Jupyter](exercises/ch03_wavelength_pitfall.ipynb) · [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch03_wavelength_pitfall_colab.ipynb) |
 | 學生講義 | [最佳光徑選擇_講義.md](最佳光徑選擇_講義.md) |
 | 資料 | [data/spectra_long.csv](data/spectra_long.csv)（21 條光譜 × 142 波長） |
 

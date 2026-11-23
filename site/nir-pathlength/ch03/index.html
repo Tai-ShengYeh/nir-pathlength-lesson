@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>波長挑選的陷阱</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/zh-hant.js"></script>
+<script src="../lib/nirdata.js"></script>
+<script src="../lib/nirkit.js"></script>
+<script src="../lib/ch03data.js"></script>
+<script src="audio/zh/timings.js"></script>
+<script>
+'use strict';
+// 第 3 章：波長挑選的陷阱。延伸報告「判斷流程」第 2 步：n = 4 時從 142 個波長挑相關最高的，一定會挑到假訊號。
+// 數字全由 tools/nir-pathlength/make_data_ch03.py 算出（lib/ch03data.js，無亂數），與 exercises/ch03_wavelength_pitfall.* 一致。
+const CHAPTER = { number: 3, title: '波長挑選的陷阱', minutes: 7, language: 'zh' };
+
+/* ---------- 本章數據 ---------- */
+const W3 = CH3.wl, R3 = CH3.r2, U3 = CH3.usable;
+const SHF = CH3.shuffle;                                    // 24 種排列
+const SH_BEST = SHF.map(s => ({ v: s.best, t: s.true })).sort((a, b) => a.v - b.v);
+const SH_FIX = SHF.map(s => ({ v: s.fixed, t: s.true })).sort((a, b) => a.v - b.v);
+const CV = CH3.rmsecv;                                     // outside 0.432, inside 2.579, fixed 2.182
+const PICKC = '#ff9fb0', FIXC = OKC;                       // 挑出來的（粉紅）／事先固定的（綠）
+function nRuns(mask, want) {                               // mask 中連續為 want 的波段 [w0, w1]
+  const out = [];
+  for (let i = 0; i < mask.length; i++) {
+    if (mask[i] !== want) continue;
+    let j = i; while (j + 1 < mask.length && mask[j + 1] === want) j++;
+    out.push([W3[Math.max(0, i - 1)] * .5 + W3[i] * .5, W3[Math.min(W3.length - 1, j + 1)] * .5 + W3[j] * .5]); i = j;
+  }
+  return out;
+}
+const r2Plot = (p, t0) => nPlot(p, [150, 170, 1000, 440], [1340, 2550], [0, 1],
+  { xt: [1400, 1600, 1800, 2000, 2200, 2400], xl: 'nm', yt: [0, .2, .4, .6, .8, 1], yf: v => v.toFixed(1), yl: 'R²（二階導數 vs 濃度，1 mm）', t0 });
+const wlx = w => W3.reduce((b, v, i) => Math.abs(v - w) < Math.abs(W3[b] - w) ? i : b, 0);
+
+/* ---------- beats ---------- */
+const BEATS = [
+  ['intro', '波長挑選的陷阱', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, '第 3 章 · 近紅外光譜定量醋酸', { x: 800, y: 320, size: 30, fill: COL.dim, anchor: 'middle' });
+    T(g, '波長挑選的陷阱', { x: 800, y: 440, size: 96, weight: 700, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = T(scene, '142 個波長，挑最好的那一個？', { x: 800, y: 560, size: 42, fill: GOLD, anchor: 'middle', o: 0 });
+    show(r, m('sub'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['recap', '142 個波長', (m) => {
+    const p = panel(0);
+    nTitle(p, '用化學原理選，還是用數據挑？');
+    const P = nPlot(p, [150, 170, 900, 400], [1340, 2550], [0, 2.6],
+      { xt: [1400, 1600, 1800, 2000, 2200, 2400], xl: 'nm', yt: [0, .5, 1, 1.5, 2, 2.5], yf: v => String(v), yl: '吸光度（1 mm）', t0: .2 });
+    NIR.A['1'].forEach((s, i) => nCurve(P, WL, s, SAMPC[i], .4 + i * .2, 1, 2.5));
+    const x58 = P.px(2258);
+    const mk58 = path(P.g, `M${x58} ${P.box[1]}V${P.box[1] + P.box[3]}`, { stroke: GOLD, 'stroke-width': 4 }, { o: 0 });
+    show(mk58, .8);
+    nText(p, '2258 nm（C–H 組合帶）', x58 - 12, P.box[1] - 16, 1, { size: 22, fill: GOLD, anchor: 'end', weight: 700 });
+    const ticks = G(p, { o: 0 });
+    W3.forEach(w => path(ticks, `M${P.px(w)} 660v26`, { stroke: COL.chalk, 'stroke-width': 2 }));
+    show(ticks, m('many'));
+    nText(p, '142 個波長', P.px(1945), 730, m('many') + .4, { size: 28, anchor: 'middle', weight: 700 });
+    nText(p, '每個波長都算 R²，', 1130, 250, m('tempt'), { size: 30 });
+    nText(p, '挑最高的？', 1130, 296, m('tempt') + .4, { size: 30, fill: PICKC, weight: 700 });
+    nText(p, '樣品只有', 1130, 430, m('n4'), { size: 30, fill: COL.dim });
+    nText(p, 'n = 4', 1130, 520, m('n4') + .3, { size: 84, fill: BADC, weight: 800 });
+  }],
+
+  ['scan', '逐波長的 R²', (m) => {
+    const p = panel(0);
+    nTitle(p, '每個波長的 R²（142 個全挑）');
+    const P = r2Plot(p, m('curve') - .4);
+    nCurve(P, W3, R3, COL.chalk, m('curve'), 2.2, 2.5);
+    nHLine(P, .95, COL.dim, m('many'));
+    nText(p, '> 0.95：' + CH3.n_r2_over_095 + ' 個波長', 1210, 230, m('many') + .3, { size: 26, weight: 700 });
+    const ja = wlx(CH3.pick_all.wl), j58 = wlx(CH3.fixed.wl);
+    nDot(P.g, P.px(W3[ja]), P.py(R3[ja]), 11, PICKC, m('top'));
+    nDot(P.g, P.px(W3[j58]), P.py(R3[j58]), 11, FIXC, m('top') + 1.2);
+    nText(p, '最高：' + Math.round(CH3.pick_all.wl) + ' nm', 1210, 320, m('top') + .3, { size: 26, fill: PICKC, weight: 700 });
+    nText(p, 'R² = ' + (Math.floor(CH3.pick_all.r2 * 1000) / 1000).toFixed(3), 1210, 358, m('top') + .6, { size: 26, fill: PICKC });
+    nText(p, '2258 nm：R² = ' + CH3.fixed.r2.toFixed(2), 1210, 410, m('top') + 1.4, { size: 24, fill: FIXC });
+    nRuns(U3, false).forEach(([a, b]) => nBand(P, a, b, BADC, .16, m('sat')));
+    nText(p, '紅色：A ≥ 1.5（飽和）', 1210, 500, m('sat') + .3, { size: 24, fill: BADC, weight: 700 });
+    const A = CH3.pick_all.A;
+    nText(p, Math.round(CH3.pick_all.wl) + ' nm 的 A：', 1210, 546, m('sat') + .9, { size: 22, fill: COL.dim });
+    nText(p, Math.min(...A).toFixed(2) + '–' + Math.max(...A).toFixed(2), 1210, 584, m('sat') + 1.2, { size: 26, fill: BADC });
+    nText(p, '→ 本來就該排除', 1210, 626, m('sat') + 1.6, { size: 24, fill: BADC });
+  }],
+
+  ['usable', '只在可用波段挑', (m) => {
+    const p = panel(0);
+    nTitle(p, '只在可用波段裡挑');
+    const P = r2Plot(p, .2);
+    nCurve(P, W3, R3, COL.dim, .3, .8, 1.5);
+    nRuns(U3, true).forEach(([a, b]) => nBand(P, a, b, OKC, .14, m('mask')));
+    nText(p, '綠色：4 條光譜都 A < 1.5', 1210, 230, m('mask') + .2, { size: 24, fill: OKC, weight: 700 });
+    nText(p, '共 ' + CH3.n_usable + ' 個波長', 1210, 268, m('mask') + .6, { size: 24, fill: OKC });
+    const ju = wlx(CH3.pick_use.wl), j58 = wlx(CH3.fixed.wl);
+    nDot(P.g, P.px(W3[ju]), P.py(R3[ju]), 11, PICKC, m('best'));
+    nDot(P.g, P.px(W3[j58]), P.py(R3[j58]), 9, FIXC, m('best') + .4);
+    nText(p, '最高：' + Math.round(CH3.pick_use.wl) + ' nm', 1210, 360, m('best') + .3, { size: 26, fill: PICKC, weight: 700 });
+    nText(p, 'R² = ' + CH3.pick_use.r2.toFixed(3), 1210, 398, m('best') + .6, { size: 26, fill: PICKC });
+    nText(p, '水帶邊緣，', 1210, 448, m('best') + 2.5, { size: 24, fill: COL.dim });
+    nText(p, '不是醋酸的特徵帶', 1210, 482, m('best') + 2.8, { size: 24, fill: COL.dim });
+    nText(p, '真的訊號？', 1210, 580, m('q'), { size: 34, fill: GOLD, weight: 700 });
+    nText(p, '還是碰巧？', 1210, 628, m('q') + .5, { size: 34, fill: GOLD, weight: 700 });
+  }],
+
+  ['q1', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-meaning', prompt: ['只有 4 個樣品、88 個候選波長，挑出的最高 R² = 0.996。這代表？'],
+    build: choice([['這個波長一定和醋酸濃度有關'], ['不一定：候選很多、點很少，碰巧也可能很高'], ['R² 最高，預測一定最準，直接採用']], 1,
+      '4 個點、88 個候選，總有幾個波長會碰巧排得很直；要先檢查，才能下結論。',
+      ['有可能有關，但光憑「挑出來的最大 R²」無法判斷。', null, 'R² 是用同樣 4 個點算的，不等於預測新樣品的能力。']),
+  }], done) }],
+
+  ['shuffle', '打亂標籤', (m) => {
+    const p = panel(0);
+    nTitle(p, '檢查：把濃度標籤打亂');
+    // 範例：標籤打亂
+    nText(p, '真正的標籤', 1150, 220, m('perm'), { size: 22, fill: COL.dim });
+    nText(p, '0 · 3.32 · 4.87 · 7.45', 1150, 258, m('perm') + .2, { size: 26, fill: GOLD });
+    nText(p, '打亂後（例）', 1150, 312, m('perm') + 1, { size: 22, fill: COL.dim });
+    nText(p, '4.87 · 0 · 7.45 · 3.32', 1150, 350, m('perm') + 1.2, { size: 26, fill: PICKC });
+    nText(p, '4! = 24 種排列，1 種正確', 1150, 410, m('perm') + 2.4, { size: 26, weight: 700 });
+    const P = nPlot(p, [150, 200, 900, 420], [-.5, 23.5], [0, 1],
+      { yt: [0, .2, .4, .6, .8, 1], yf: v => v.toFixed(1), yl: '從 88 個波長挑出的最高 R²', t0: m('run') - .4 });
+    nText(p, '24 種排列（由低到高）', 600, 670, m('run'), { size: 22, fill: COL.dim, anchor: 'middle' });
+    SH_BEST.forEach((s, i) => nBar(P.g, P.px(i), 26, P.py(0), P.py(s.v), s.t ? GOLD : PICKC, m('run') + .6 + i * .12, .5));
+    nHLine(P, .9, COL.chalk, m('line'));
+    nText(p, '0.9', P.box[0] + P.box[2] + 10, P.py(.9) + 8, m('line'), { size: 20, fill: COL.chalk });
+    nText(p, '金色：正確的排列', 1150, 480, m('run') + 1, { size: 22, fill: GOLD });
+    nText(p, '錯誤的 23 種裡', 1150, 540, m('line') + .5, { size: 26 });
+    nText(p, CH3.wrong_best_over_09 + ' 種 R² > 0.9', 1150, 590, m('line') + .9, { size: 40, fill: PICKC, weight: 800 });
+    nText(p, '高 R² 是挑出來的', 1150, 660, m('why') + 1.5, { size: 28, fill: BADC, weight: 700 });
+  }],
+
+  ['fixed', '事先固定波長', (m) => {
+    const p = panel(0);
+    nTitle(p, '若事先固定在 2258 nm');
+    const P = nPlot(p, [150, 200, 900, 420], [-.5, 23.5], [0, 1],
+      { yt: [0, .2, .4, .6, .8, 1], yf: v => v.toFixed(1), yl: '2258 nm 的 R²', t0: m('bars') - .4 });
+    nText(p, '同樣 24 種排列（由低到高）', 600, 670, m('bars'), { size: 22, fill: COL.dim, anchor: 'middle' });
+    SH_FIX.forEach((s, i) => nBar(P.g, P.px(i), 26, P.py(0), P.py(Math.max(s.v, .004)), s.t ? GOLD : FIXC, m('bars') + .4 + i * .1, .5));
+    nHLine(P, .9, COL.chalk, m('bars') + .2);
+    nText(p, '0.9', P.box[0] + P.box[2] + 10, P.py(.9) + 8, m('bars') + .2, { size: 20, fill: COL.chalk });
+    nText(p, '錯誤的 23 種裡', 1150, 260, m('one'), { size: 26 });
+    nText(p, CH3.wrong_fixed_over_09 + ' 種 R² > 0.9', 1150, 310, m('one') + .4, { size: 40, fill: FIXC, weight: 800 });
+    nText(p, '對照：從 88 個挑', 1150, 400, m('one') + 1.6, { size: 24, fill: COL.dim });
+    nText(p, CH3.wrong_best_over_09 + ' 種 R² > 0.9', 1150, 440, m('one') + 1.9, { size: 28, fill: PICKC, weight: 700 });
+    nText(p, '事先固定：R² 才有意義', 1150, 560, m('lesson'), { size: 28, fill: FIXC, weight: 700 });
+    nText(p, '事後挑選：幾乎總能湊到', 1150, 604, m('lesson') + 2, { size: 26, fill: PICKC });
+  }],
+
+  ['q2', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-why', prompt: ['濃度標籤都打亂了，為什麼還常常挑得到 R² > 0.9 的波長？'],
+    build: choice([['光譜裡真的有醋酸的訊號'], ['從 88 個波長裡取最大值，只有 4 個點時很容易碰巧排成直線'], ['儀器雜訊太大']], 1,
+      '每多一個候選波長，就多一次碰巧的機會；4 個點又很容易排成直線，最大值自然很高。',
+      ['標籤已經錯了，真正的訊號反而會被打亂。', null, '儀器很穩（第 2 章：0.0012 AU）；問題出在「挑最大值」這個動作。']),
+  }], done) }],
+
+  ['loo', '交叉驗證放哪裡', (m) => {
+    const p = panel(0);
+    nTitle(p, '挑波長這一步，放在交叉驗證的哪裡？');
+    const box = (x, y, w, str, c, t0) => {
+      const g = G(p, { o: 0, y: 10 });
+      mk('rect', { x, y, width: w, height: 64, rx: 12, fill: 'none', stroke: c, 'stroke-width': 3 }, g);
+      T(g, str, { x: x + w / 2, y: y + 42, size: 24, anchor: 'middle', fill: c, weight: 600 });
+      tw(g, { o: 1, y: 0 }, t0, .5, out);
+    };
+    const arr = (x, y, t0) => { const g = G(p, { o: 0 }); path(g, `M${x} ${y}h40`, { stroke: COL.dim, 'stroke-width': 3 }); nArrowHead(g, x + 52, y, 'r', COL.dim, 14); show(g, t0); };
+    nText(p, 'A', 130, 222, m('out'), { size: 32, weight: 800, fill: BADC });
+    box(170, 180, 300, '用 4 點挑好 1862 nm', BADC, m('out') + .2); arr(486, 212, m('out') + .7);
+    box(550, 180, 300, '再做留一交叉驗證', BADC, m('out') + 1);
+    nText(p, 'B', 130, 332, m('in'), { size: 32, weight: 800, fill: GOLD });
+    box(170, 290, 300, '每一輪：用 3 點挑', GOLD, m('in') + 3); arr(486, 322, m('in') + 3.5);
+    box(550, 290, 300, '預測留下的那一點', GOLD, m('in') + 3.8);
+    nText(p, 'C', 130, 442, m('fix'), { size: 32, weight: 800, fill: FIXC });
+    box(170, 400, 300, '事先固定 2258 nm', FIXC, m('fix') + .2); arr(486, 432, m('fix') + .6);
+    box(550, 400, 300, '留一交叉驗證', FIXC, m('fix') + .8);
+    // 右：RMSECV 長條
+    const P = nPlot(p, [1010, 180, 480, 330], [-.5, 2.5], [0, 3], { yt: [0, 1, 2, 3], yl: 'RMSECV %', t0: m('out') + 1.5 });
+    const [, by, , bh] = P.box;
+    [['A', CV.outside, BADC, m('out') + 2], ['B', CV.inside, GOLD, m('in') + 5], ['C', CV.fixed, FIXC, m('fix') + 1.5]].forEach(([nm, v, c, t0], i) => {
+      nText(p, nm, P.px(i), by + bh + 36, t0, { size: 26, anchor: 'middle', fill: c, weight: 800 });
+      nBar(P.g, P.px(i), 90, P.py(0), P.py(v), c, t0);
+      nText(p, v.toFixed(2) + ' %', P.px(i), P.py(v) - 12, t0 + .6, { size: 24, anchor: 'middle', fill: c, weight: 700 });
+    });
+    nText(p, 'A 的 0.43 % 是被挑選過程騙出來的', 150, 610, m('cmp'), { size: 30, fill: BADC, weight: 700 });
+    nText(p, '誠實的比較：B（挑波長）2.58 % ＞ C（固定）2.18 %', 150, 664, m('cmp') + 2.5, { size: 28 });
+    nText(p, 'C 與第 1 章的 RMSECV 相同', 150, 712, m('cmp') + 4.5, { size: 22, fill: COL.dim });
+  }],
+
+  ['folds', '每一輪挑到什麼', (m) => {
+    const p = panel(0);
+    nTitle(p, 'B 的每一輪：只用 3 個點重新挑');
+    const H = [['留下的樣品', 160], ['挑到的波長', 420], ['R² 第一／第二', 690], ['預測', 990], ['誤差（預測 − 真值）', 1110]];
+    H.forEach(([s, x]) => nText(p, s, x, 200, .3, { size: 22, fill: COL.dim }));
+    const x0 = 1300, sc = 40;
+    path(p, `M${x0} 230V560`, { stroke: COL.dim, 'stroke-width': 2 });
+    CH3.folds_inside.forEach((f, i) => {
+      const y = 280 + i * 80, t0 = m('picks') + .3 + i * 1.4, big = Math.abs(f.err) > 4;
+      nText(p, f.left_out + ' %', 160, y, t0, { size: 28, fill: SAMPC[i], weight: 700 });
+      nText(p, f.pick_wl.toFixed(1) + ' nm', 420, y, t0 + .3, { size: 28, fill: PICKC, weight: 700 });
+      nText(p, f.r2.toFixed(4) + ' / ' + f.r2_2nd.toFixed(4), 690, y, m('r2') + i * .3, { size: 26 });
+      nText(p, f.pred.toFixed(2), 990, y, m('big') - .4 + i * .2, { size: 26 });
+      const b = mk('rect', { x: x0, y: y - 22, width: 0, height: 30, fill: big ? BADC : PICKC }, p);
+      if (f.err < 0) tw(b, { a_x: x0 + f.err * sc, a_width: -f.err * sc }, m('big') - .4 + i * .2, .6, out);
+      else tw(b, { a_width: f.err * sc }, m('big') - .4 + i * .2, .6, out);
+      nText(p, fmt(f.err, 2), f.err < 0 ? x0 + f.err * sc - 10 : x0 + f.err * sc + 10, y, m('big') + .4 + i * .2,
+        { size: 22, anchor: f.err < 0 ? 'end' : 'start', fill: big ? BADC : COL.chalk, weight: big ? 800 : 500 });
+    });
+    nText(p, '四輪挑到四個不同的波長；第一和第二名幾乎一樣好', 160, 640, m('r2') + 1.5, { size: 26, fill: GOLD });
+    nText(p, '留下 4.87 % 那一輪誤差最大，主導了 2.58 %', 160, 690, m('big') + 1.5, { size: 26, fill: BADC });
+    nText(p, 'n = 4：數字本身不穩，看的是比較的方向', 160, 740, m('caution'), { size: 24, fill: COL.dim });
+  }],
+
+  ['q3', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-honest', prompt: ['要報告「從數據挑波長」這個方法的預測誤差，應該用哪個數字？'],
+    build: choice([['0.43 %：先用 4 點挑好波長，再交叉驗證'], ['2.58 %：每一輪只用訓練的 3 點重新挑'], ['R² = 0.996']], 1,
+      '交叉驗證要模擬「沒看過的新樣品」：挑波長也是建模的一步，必須在每一輪裡只用訓練資料重做。',
+      ['挑波長時已經看過留下的那一點，等於偷看答案，誤差被低估。', null, 'R² 用的是同一批資料，不是預測誤差。']),
+  }], done) }],
+
+  ['rules', '三條規則', (m) => {
+    const p = panel(0);
+    nTitle(p, '三條規則');
+    [['先用化學原理選波段，再看數據', '不要從 142 個波長裡挑相關最高的', 'r1'],
+     ['數據驅動的選擇，都放進交叉驗證', '挑波長、挑前處理、挑 PLS 主成分數……每一輪重做', 'r2'],
+     ['樣品數要夠', 'n = 4 只算初步；照第 2 章：8 濃度 × 3 次填樣', 'r3']].forEach(([a, b, mark], i) => {
+      const g = G(p, { x: -16, y: 250 + i * 150, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: GOLD }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, a, { x: 260, size: 38, weight: 700 });
+      T(g, b, { x: 260, y: 46, size: 26, fill: COL.dim });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+  }],
+
+  ['wrap', '總結', (m) => {
+    const p = panel(0);
+    nTitle(p, '總結');
+    [['樣品少、波長多：一定挑得到很高的 R²。', 'w1'], ['打亂標籤：檢查假訊號最簡單的方法。', 'w2'],
+     ['挑選步驟放進交叉驗證，否則誤差被低估。', 'w3']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 250 + i * 130, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: GOLD }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 38, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+    nText(p, '下一步：做練習，再用 R 或 Python 親手打亂標籤', 800, 720, m('end'), { size: 30, fill: GOLD, anchor: 'middle' });
+  }],
+
+  ['final1', '本章練習', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-perm', prompt: ['若有 5 個樣品，濃度標籤共有幾種排列方式？'],
+    build: blanks([{ parts: ['共 ', { box: '120' }, ' 種'], why: '5! = 5 × 4 × 3 × 2 × 1 = 120。', hint: '4 個樣品是 4! = 24 種。' }]),
+  }, {
+    id: 'p-leak', prompt: ['同學從 142 個波長挑出 R² = 0.99 的波長，再用這個波長做留一交叉驗證，得到 RMSECV 0.3 %。這個 0.3 %？'],
+    build: choice([['可能太樂觀：挑波長沒有放進交叉驗證'], ['可信：已經做過交叉驗證了'], ['太保守：真實誤差會更小']], 0,
+      '挑波長時用了全部樣品，交叉驗證的每一輪其實都「看過」留下的那一點。',
+      [null, '交叉驗證只檢查了迴歸，沒有檢查「挑波長」這一步。', '挑選帶來的是樂觀的偏誤，真實誤差通常更大。']),
+  }, {
+    id: 'p-where', prompt: ['下列步驟，哪些必須放進交叉驗證的每一輪？'],
+    build: grid([
+      { parts: ['從數據挑 R² 最高的波長'], ans: ['in'], why: '這一步用到了濃度，屬於建模的一部分。' },
+      { parts: ['依化學原理選 2258 nm'], ans: ['pre'], why: '沒有看濃度數據，可以事先固定。' },
+      { parts: ['由數據決定 PLS 主成分數'], ans: ['in'], why: '用預測誤差挑主成分數，也是一種挑選。' },
+      { parts: ['事先決定用 9 點 SG 二階導數'], ans: ['pre'], why: '事先固定、不看結果，就不會造成偏誤。' },
+    ], [['in', '放進每一輪'], ['pre', '可以事先固定']], { multi: false, text: true }),
+  }], done, '本章練習') }],
+
+  ['finish', '完成', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+boot();
+</script>
+</body>
+</html>
