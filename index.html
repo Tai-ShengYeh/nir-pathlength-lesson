@@ -138,7 +138,7 @@ const CHAPTERS = [
     quiz: 3, checks: 48 },
   { id: 'ch07', no: 7, title: '設計下一次實驗', mins: 8, tags: ['預試驗', '隨機順序', '盲樣驗證'],
     desc: '現有數據量不出填樣誤差和參考值誤差。先做預試驗，重複做在對的層次，濃度等間隔、順序分區塊打亂，再用盲樣驗證；附順序表與紀錄表。',
-    quiz: 3, checks: 69 },
+    quiz: 3, checks: 74 },
 ];
 const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => v != null && (k === 'text' ? e.textContent = v : e.setAttribute(k, v))); kids.forEach(k => k && e.append(k)); return e; };

@@ -211,8 +211,8 @@ md(r'''
 ## 4. 區間寬度敏感度：寬度取決於還不知道的誤差
 
 用 Fieller 區間（同第 5 章），未知樣品在 4 %、斜率用滴定校正的 b、令截距 a = 0。
-- (a) 樂觀：8 濃度 × 3 次填樣，24 點彼此獨立。
-- (b) 較實際：同一濃度的 3 次填樣共用配製誤差 s_ref，改用 8 個濃度平均（n = 8，自由度 6）。
+- (a) 把 24 次填樣當成彼此獨立：只有**配製誤差為 0** 時才成立。
+- (b) 同一濃度的 3 次填樣共用配製誤差 s_ref，改分析 8 個濃度平均（n = 8，自由度 6）：不論配製誤差是否為 0 都成立。
 - (c) 多填樣能不能壓過配製誤差？
 ''')
 
@@ -227,7 +227,7 @@ def half_width(s_conc, m, xs, b=ft['b'], x0=4.0):
 X83 = np.repeat(np.arange(8.0), 3); X8 = np.arange(8.0)
 SS = [0.1, 0.2, 0.4, 0.6, 1.0]
 m1 = [half_width(s, 1, X83) for s in SS]; m3 = [half_width(s, 3, X83) for s in SS]
-print('(a) 樂觀：8 濃度 x 3 次填樣，24 點彼此獨立；半寬（%）')
+print('(a) 把 24 次填樣當成彼此獨立（只有配製誤差為 0 時才成立）；半寬（%）')
 for s, a1, a3 in zip(SS, m1, m3):
     print('   填樣誤差 s = %.1f %%：未知樣品量 1 次 -> %.4f；量 3 次 -> %.4f' % (s, a1, a3))
 
@@ -241,10 +241,11 @@ def hw_levels(s_fill, s_ref, m=3):
 
 SF = 0.4; SR = [0.0, 0.2, 0.4]
 hw = [hw_levels(SF, r) for r in SR]
-print('(b) 較實際：同一濃度的 3 次填樣共用配製誤差 s_ref；填樣誤差 s_fill = 0.4 %')
+print('(b) 分析 8 個濃度平均（自由度 6），不論配製誤差是否為 0 都成立；同一濃度的 3 次填樣共用配製誤差 s_ref；填樣誤差 s_fill = 0.4 %')
 for r, h in zip(SR, hw):
     print('   s_ref = %.1f %% -> 半寬 %.4f %%' % (r, h))
 fills = [1, 3, 6, 12]; pt_sd = [float(np.sqrt(0.4 ** 2 + SF ** 2 / f)) for f in fills]
+print('對照：把 24 次填樣當獨立點，s = 0.4 % 時半寬 +/- 0.51 %，只在配製誤差為 0 時才對；分析 8 個濃度平均則 s_ref = 0 時 +/- 0.60 %、s_ref = 0.4 % 時 +/- 0.71 %，兩種情況都有效。')
 print('(c) 填樣次數加倍能不能壓過配製誤差？s_ref = 0.4 %，每個濃度平均 f 次填樣的點標準差：')
 for f, v in zip(fills, pt_sd):
     print('   f = %2d -> %.4f %%' % (f, v))
@@ -400,41 +401,57 @@ md(r'''
 md(r'''
 ## 8. 產生順序表與紀錄表
 
-`ch07_run_sheet.csv`（UTF-8 含 BOM，Excel 可直接開）共 37 列：
-- **預試驗 13 列**：同一瓶約 4 % 的醋重新填樣 10 次（填樣 1–10、掃描 1），再對同一次填樣連續掃描 3 次（填樣 1、掃描 1–3）。
+`ch07_run_sheet.csv`（UTF-8 含 BOM，Excel 可直接開）共 49 列（13 + 24 + 12，14 欄）：
+- **預試驗 13 列**：同一瓶約 4 % 的醋重新填樣 10 次（填樣 1–10、掃描 1），再對**第 11 次填樣**連續掃描 3 次（填樣 11、掃描 1–3），檢查掃描雜訊。
 - **主實驗 24 列**：8 濃度 × 3 區塊，依第 6 節的範例順序；「第幾次填樣」＝該濃度第幾次出現。
+- **驗證 12 列**：4 個盲樣（盲樣A–盲樣D，由別人編碼，操作者不知道濃度，`濃度_pct` 留空）各填樣 3 次，輪替順序 A1 B1 C1 D1 ／ B2 C2 D2 A2 ／ C3 D3 A3 B3（字母＝盲樣，數字＝第幾次填樣）。`順序` 欄每個階段各自從 1 起算。
 
 日期、操作者、光徑、瓶號、溫度、檔名、備註 7 欄留白，實驗時手填。列印版的計畫與檢查表見 `ch07_record_sheet.md`。
 ''')
 
 code(r'''
 import csv
-cols = ['階段', '區塊', '順序', '濃度_pct', '第幾次填樣', '第幾次掃描', '日期', '操作者', '光徑_mm', '瓶號', '溫度_C', '檔名', '備註']
+cols = ['階段', '區塊', '樣品', '順序', '濃度_pct', '第幾次填樣', '第幾次掃描', '日期', '操作者', '光徑_mm', '瓶號', '溫度_C', '檔名', '備註']
 blank = [''] * 7
-rows = [['預試驗', '預試驗', i + 1, 4, f, s] + blank
-        for i, (f, s) in enumerate(list(zip(range(1, 11), [1] * 10)) + [(1, 1), (1, 2), (1, 3)])]
+rows = [['預試驗', '預試驗', '預試驗瓶', i + 1, 4, f, s] + blank
+        for i, (f, s) in enumerate(list(zip(range(1, 11), [1] * 10)) + [(11, 1), (11, 2), (11, 3)])]
 seen = {}
 for i, lv in enumerate(example):
     seen[lv] = seen.get(lv, 0) + 1
-    rows.append(['主實驗', i // 8 + 1, i + 1, lv, seen[lv], 1] + blank)
+    rows.append(['主實驗', i // 8 + 1, '標準品', i + 1, lv, seen[lv], 1] + blank)
+val_seq = ['A1', 'B1', 'C1', 'D1', 'B2', 'C2', 'D2', 'A2', 'C3', 'D3', 'A3', 'B3']   # 字母 = 盲樣，數字 = 第幾次填樣
+for i, v in enumerate(val_seq):
+    rows.append(['驗證', '盲樣', '盲樣' + v[0], i + 1, '', int(v[1]), 1] + blank)
 with open('ch07_run_sheet.csv', 'w', encoding='utf-8-sig', newline='') as fh:
     w = csv.writer(fh, lineterminator='\n'); w.writerow(cols); w.writerows(rows)
 rs = pd.read_csv('ch07_run_sheet.csv', encoding='utf-8-sig')
-print('已寫出 ch07_run_sheet.csv：%d 列（預試驗 13 + 主實驗 24），%d 欄' % (len(rs), rs.shape[1]))
-print(rs.head(15).to_string())
+print('已寫出 ch07_run_sheet.csv：%d 列（預試驗 13 + 主實驗 24 + 驗證 12），%d 欄' % (len(rs), rs.shape[1]))
+print('預試驗：同一瓶約 4 % 的醋重新填樣 10 次（填樣 1-10），再對第 11 次填樣連續掃描 3 次（掃描雜訊檢查）；主實驗：8 濃度 x 3 區塊，依範例順序。')
+print('驗證：4 個盲樣（盲樣A-D）各填樣 3 次，輪替順序 A1 B1 C1 D1 / B2 C2 D2 A2 / C3 D3 A3 B3；濃度欄留空（操作者不知道）。')
+print(rs.iloc[[0, 9, 10, 12, 13, 14, 37, 38, 39, 40, 48], :7].to_string())
 
-chk('run sheet: number of rows', len(rs), 37)
+chk('run sheet: number of rows', len(rs), 49)
+chk('run sheet: number of columns', rs.shape[1], 14)
 chk('run sheet: pilot rows', int((rs['階段'] == '預試驗').sum()), 13)
 chk('run sheet: main rows', int((rs['階段'] == '主實驗').sum()), 24)
+chk('run sheet: validation rows', int((rs['階段'] == '驗證').sum()), 12)
 chk('run sheet: main levels mismatch with example order', int((rs.loc[rs['階段'] == '主實驗', '濃度_pct'].values != np.array(example)).sum()), 0)
+pl = rs[rs['階段'] == '預試驗']
+chk('run sheet: pilot fill/scan pattern mismatches (fills 1-11, fill 11 scanned 3 times)',
+    int((pl['第幾次填樣'].values != np.array(list(range(1, 11)) + [11, 11, 11])).sum() + (pl['第幾次掃描'].values != np.array([1] * 10 + [1, 2, 3])).sum()), 0)
+vl = rs[rs['階段'] == '驗證']
+chk('run sheet: validation order mismatches (A1 B1 C1 D1 B2 C2 D2 A2 C3 D3 A3 B3)',
+    int((vl['樣品'].str.replace('盲樣', '', regex=False) + vl['第幾次填樣'].astype(str) != np.array(val_seq)).sum()), 0)
+chk('run sheet: validation concentration cells not blank', int(vl['濃度_pct'].notna().sum()), 0)
 show_checks('第 8 節')
 ''')
 
 md(r'''
 ### 動手改改看（第 8 節）
 1. 用 Excel 開 `ch07_run_sheet.csv`，中文有亂碼嗎？（檔案含 BOM，應該不會）
-2. 預試驗為什麼要同時有「重新填樣 10 次」與「同一次填樣掃描 3 次」？兩者分別量到什麼誤差？
+2. 預試驗為什麼要同時有「重新填樣 10 次」與「第 11 次填樣掃描 3 次」？兩者分別量到什麼誤差？
 3. 主實驗第 k 區塊的「第幾次填樣」等於 k，為什麼？
+4. 驗證階段為什麼要由別人編碼盲樣、濃度欄留空？
 ''')
 
 code(r'''
@@ -453,7 +470,7 @@ md(r'''
 5. 同樣 24 次測量：8 濃度 × 3 次可以做線性檢查（lof_df 6、pure_df 16）；只量兩端看不到彎曲。
 6. 測量順序：由低到高偏 6.5 %，隨機 ±2.7 %，分 3 區塊 ±0.93 %，範例順序只偏 0.069 %。
 7. 課堂 8 組各做 4 個濃度，每個濃度剛好 4 組。
-8. 已產生順序表（37 列）；紀錄表見 `ch07_record_sheet.md`。
+8. 已產生順序表（49 列：預試驗 13 + 主實驗 24 + 驗證 12）；紀錄表見 `ch07_record_sheet.md`。
 ''')
 
 

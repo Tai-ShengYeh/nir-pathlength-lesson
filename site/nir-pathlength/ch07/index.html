@@ -73,7 +73,7 @@ const BEATS = [
     const p = panel(0);
     nTitle(p, '各層誤差，換成濃度（%）');
     const P = nPlot(p, [180, 170, 740, 450], [-.6, 3.6], [0, 1.1], { xt: [], yt: [0, .25, .5, .75, 1], yl: '標準差（酸度 %）', t0: .2 });
-    const bars = [[SC7.conc025, '掃描', '0.25 mm 實測', WATERC, 'scan'], [SC7.conc1_est, '掃描', '1 mm 粗估', WATERC, 'est'],
+    const bars = [[SC7.conc025, '掃描', '0.25 mm 實測*', WATERC, 'scan'], [SC7.conc1_est, '掃描', '1 mm 粗估', WATERC, 'est'],
                   [SC7.resid_titr, '校正殘差', '滴定', GOLD, 'resid'], [SC7.resid_atago, '校正殘差', 'Atago', BADC, 'resid']];
     bars.forEach(([v, a, b, c, mark], i) => {
       const t0 = m(mark) + (i === 3 ? 1 : 0);
@@ -82,7 +82,8 @@ const BEATS = [
       nText(p, a, P.px(i), P.box[1] + P.box[3] + 36, t0, { size: 22, anchor: 'middle' });
       nText(p, b, P.px(i), P.box[1] + P.box[3] + 64, t0, { size: 20, anchor: 'middle', fill: COL.dim });
     });
-    nText(p, '1 mm 吸光度較高，雜訊放大約 ' + SC7.scale.toFixed(1) + ' 倍（粗估）', 1010, 230, m('est'), { size: 22, fill: COL.dim });
+    nText(p, '* 以 1 mm 斜率換算', 1010, 200, m('scan'), { size: 20, fill: COL.dim });
+    nText(p, '1 mm 吸光度較高，雜訊放大約 ' + SC7.scale.toFixed(1) + ' 倍（粗估）', 1010, 235, m('est'), { size: 22, fill: COL.dim });
     nText(p, '大部分誤差來自', 1010, 310, m('resid') + 1.5, { size: 28 });
     nText(p, '填樣和參考值，不是儀器', 1010, 352, m('resid') + 2, { size: 28, fill: GOLD, weight: 700 });
     nText(p, '重複要做在對的層次：', 1010, 450, m('layers'), { size: 28, weight: 700 });
@@ -125,21 +126,21 @@ const BEATS = [
   ['spacing', '濃度怎麼排', (m) => {
     const p = panel(0);
     nTitle(p, '同樣量 24 次，濃度怎麼排？');
-    const cols = [['排法', 300], ['斜率標準誤', 620], ['檢查直線的自由度', 860]];
+    const cols = [['排法', 260], ['斜率標準誤', 540], ['檢查直線的自由度', 760]];
     cols.forEach(([s, x]) => nText(p, s, x, 220, .3, { size: 22, fill: COL.dim, anchor: 'middle' }));
-    nText(p, '（現在 4 點 = 1）', 620, 250, .3, { size: 18, fill: COL.dim, anchor: 'middle' });
+    nText(p, '（現在 4 點 = 1）', 540, 250, .3, { size: 18, fill: COL.dim, anchor: 'middle' });
     [['兩端各 12 次', 'ends'], ['3 個濃度各 8 次', 'three'], ['8 個濃度各 3 次', 'eight']].forEach(([name, key], i) => {
       const y = 320 + i * 80, d = SP7[key], c = key === 'eight' ? OKC : COL.chalk;
-      nText(p, name, 300, y, m('se') + i * .3, { size: 28, anchor: 'middle', fill: c, weight: key === 'eight' ? 700 : 500 });
-      nText(p, f2(d.se_rel), 620, y, m('se') + .3 + i * .3, { size: 30, anchor: 'middle', fill: c, weight: 700 });
-      nText(p, String(d.lof_df), 860, y, m('lof') + i * .3, { size: 30, anchor: 'middle', fill: d.lof_df === 0 ? BADC : c, weight: 700 });
+      nText(p, name, 260, y, m('se') + i * .3, { size: 28, anchor: 'middle', fill: c, weight: key === 'eight' ? 700 : 500 });
+      nText(p, f2(d.se_rel), 540, y, m('se') + .3 + i * .3, { size: 30, anchor: 'middle', fill: c, weight: 700 });
+      nText(p, String(d.lof_df), 760, y, m('lof') + i * .3, { size: 30, anchor: 'middle', fill: d.lof_df === 0 ? BADC : c, weight: 700 });
     });
-    const C = SP7.curve, P = nPlot(p, [1040, 200, 420, 340], [0, 7], [0, 7], { xt: [0, 3.5, 7], xl: '真正的酸度 %', yt: [0, 3.5, 7], yl: '量到的訊號（換算）', t0: m('curve') });
+    const C = SP7.curve, P = nPlot(p, [960, 200, 400, 340], [0, 7], [0, 7], { xt: [0, 3.5, 7], xl: '真正的酸度 %', yt: [0, 3.5, 7], yl: '量到的訊號（換算）', t0: m('curve') });
     nCurve(P, C.x, C.x, COL.dim, m('curve') + .3, .8, 2, { 'stroke-dasharray': '8 6' });
     nCurve(P, C.x, C.y, GOLD, m('curve') + .6, 1.2, 4);
     [0, 7].forEach(x => nDot(P.g, P.px(x), P.py(x), 10, BADC, m('curve') + 1.2));
-    nText(p, '示意：反應有點彎', 1060, 620, m('curve') + 1, { size: 22, fill: GOLD });
-    nText(p, '只量兩端：中間偏 ' + f2(C.mid_bias) + ' % 卻看不出來', 1060, 655, m('curve') + 2, { size: 22, fill: BADC });
+    nText(p, '示意：反應有點彎', 980, 620, m('curve') + 1, { size: 22, fill: GOLD });
+    nText(p, '只量兩端：中間偏 ' + f2(C.mid_bias) + ' % 卻看不出來', 980, 655, m('curve') + 2, { size: 22, fill: BADC });
     nText(p, '選 8 個濃度、各 3 次：犧牲一點斜率精度，換來檢查直線的能力', 800, 750, m('pick'), { size: 28, anchor: 'middle', fill: OKC, weight: 700 });
   }],
 
@@ -185,9 +186,10 @@ const BEATS = [
       nText(p, f2(v), P.px(i), P.py(v) - 12, m('fills') + 1.2 + i * .5, { size: 22, anchor: 'middle', fill: GOLD, weight: 700 });
       nText(p, '填 ' + f + ' 次', P.px(i), P.box[1] + P.box[3] + 36, m('fills') + .8 + i * .5, { size: 22, anchor: 'middle' });
     });
-    nText(p, '分析時：同一濃度的 3 次先平均，當成 8 個點（自由度 6）', 800, 680, m('avg'), { size: 28, anchor: 'middle', weight: 700 });
-    nText(p, '區間 ±' + f2(SN7.m3[SN7.s.indexOf(.4)]) + '（誤當 24 個獨立點）→ ±' + f2(SR7.hw[0]) + '（誠實）', 800, 735, m('avg') + 2, { size: 26, anchor: 'middle', fill: OKC });
-    nText(p, '（填樣誤差 0.4 %、未知樣品填 3 次、配製誤差 0）', 800, 775, m('avg') + 2.5, { size: 20, anchor: 'middle', fill: COL.dim });
+    nText(p, '分析時：同一濃度的 3 次先平均，當成 8 個點（自由度 6）', 800, 640, m('avg'), { size: 28, anchor: 'middle', weight: 700 });
+    nText(p, '當成 24 個獨立點：±' + f2(SN7.m3[SN7.s.indexOf(.4)]) + '（只在配製誤差 = 0 時成立）', 800, 690, m('cmp'), { size: 26, anchor: 'middle', fill: BADC });
+    nText(p, '8 個平均點：±' + f2(SR7.hw[0]) + '（配製誤差 0）、±' + f2(SR7.hw[2]) + '（配製誤差 0.4）', 800, 735, m('cmp') + 2.5, { size: 26, anchor: 'middle', fill: OKC, weight: 700 });
+    nText(p, '（填樣誤差 0.4 %、未知樣品填 3 次）', 800, 775, m('cmp') + 3, { size: 20, anchor: 'middle', fill: COL.dim });
   }],
 
   ['blind', '獨立驗證', (m) => {

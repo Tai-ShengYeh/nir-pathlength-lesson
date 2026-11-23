@@ -56,7 +56,7 @@ const PACKS = {
  },
  "ch07": {
   "zip": "packs/nir_ch07_experiment_design.zip",
-  "size": 401165,
+  "size": 403929,
   "ows": "exercises/orange/ch07_design.ows",
   "guide": "exercises/orange/ch07_orange_guide.md",
   "r": "exercises/ch07_experiment_design.R",
@@ -65,6 +65,6 @@ const PACKS = {
  },
  "all": {
   "zip": "packs/nir_all_chapters.zip",
-  "size": 3828739
+  "size": 3831503
  }
 };

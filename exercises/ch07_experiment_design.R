@@ -190,7 +190,7 @@ half_width <- function(s_conc, m, xs, b = ft$b, x0 = 4) {   # 截距 a = 0；未
 X83 <- rep(0:7, each = 3); X8 <- 0:7
 SS <- c(0.1, 0.2, 0.4, 0.6, 1.0)
 m1 <- sapply(SS, function(s) half_width(s, 1, X83)); m3 <- sapply(SS, function(s) half_width(s, 3, X83))
-cat("(a) 樂觀：8 濃度 x 3 次填樣，24 點彼此獨立；半寬（%）\n")
+cat("(a) 把 24 次填樣當成彼此獨立（只有配製誤差為 0 時才成立）；半寬（%）\n")
 for (i in seq_along(SS)) cat(sprintf("   填樣誤差 s = %.1f %%：未知樣品量 1 次 -> %.4f；量 3 次 -> %.4f\n", SS[i], m1[i], m3[i]))
 hw_levels <- function(s_fill, s_ref, m = 3) {              # 同一濃度 3 次填樣共用配製誤差 s_ref；用 8 個濃度平均（自由度 6）
   s_pt <- sqrt(s_ref^2 + s_fill^2 / 3)
@@ -202,9 +202,10 @@ hw_levels <- function(s_fill, s_ref, m = 3) {              # 同一濃度 3 次�
 }
 SF <- 0.4; SR <- c(0, 0.2, 0.4)
 hw <- sapply(SR, function(r) hw_levels(SF, r))
-cat("(b) 較實際：同一濃度的 3 次填樣共用配製誤差 s_ref；填樣誤差 s_fill = 0.4 %\n")
+cat("(b) 分析 8 個濃度平均（自由度 6），不論配製誤差是否為 0 都成立；同一濃度的 3 次填樣共用配製誤差 s_ref；填樣誤差 s_fill = 0.4 %\n")
 for (i in seq_along(SR)) cat(sprintf("   s_ref = %.1f %% -> 半寬 %.4f %%\n", SR[i], hw[i]))
 fills <- c(1, 3, 6, 12); pt_sd <- sqrt(0.4^2 + SF^2 / fills)
+cat("對照：把 24 次填樣當獨立點，s = 0.4 % 時半寬 +/- 0.51 %，只在配製誤差為 0 時才對；分析 8 個濃度平均則 s_ref = 0 時 +/- 0.60 %、s_ref = 0.4 % 時 +/- 0.71 %，兩種情況都有效。\n")
 cat("(c) 填樣次數加倍能不能壓過配製誤差？s_ref = 0.4 %，每個濃度平均 f 次填樣的點標準差：\n")
 for (i in seq_along(fills)) cat(sprintf("   f = %2d -> %.4f %%\n", fills[i], pt_sd[i]))
 cat("多填樣只能壓低填樣那一項；配製誤差 0.4 % 是下限：0.5657 -> 0.4163，越來越慢。\n")
@@ -336,29 +337,42 @@ show_checks("第 7 節")
 # 8. 產生順序表與紀錄表
 # =====================================================================
 hr("8. 產生 ch07_run_sheet.csv（順序表）")
-cols <- c("階段", "區塊", "順序", "濃度_pct", "第幾次填樣", "第幾次掃描", "日期", "操作者", "光徑_mm", "瓶號", "溫度_C", "檔名", "備註")
-pilot_rows <- sprintf("預試驗,預試驗,%d,4,%d,%d", 1:13, c(1:10, 1, 1, 1), c(rep(1, 10), 1:3))
+cols <- c("階段", "區塊", "樣品", "順序", "濃度_pct", "第幾次填樣", "第幾次掃描", "日期", "操作者", "光徑_mm", "瓶號", "溫度_C", "檔名", "備註")
+pilot_rows <- sprintf("預試驗,預試驗,預試驗瓶,%d,4,%d,%d", 1:13, c(1:10, 11, 11, 11), c(rep(1, 10), 1:3))
 fill_no <- ave(example, example, FUN = seq_along)
-main_rows <- sprintf("主實驗,%d,%d,%d,%d,1", rep(1:3, each = 8), 1:24, as.integer(example), as.integer(fill_no))
-body <- c(pilot_rows, main_rows)
+main_rows <- sprintf("主實驗,%d,標準品,%d,%d,%d,1", rep(1:3, each = 8), 1:24, as.integer(example), as.integer(fill_no))
+val_seq <- c("A1", "B1", "C1", "D1", "B2", "C2", "D2", "A2", "C3", "D3", "A3", "B3")      # 字母 = 盲樣，數字 = 第幾次填樣
+val_rows <- sprintf("驗證,盲樣,盲樣%s,%d,,%s,1", substr(val_seq, 1, 1), 1:12, substr(val_seq, 2, 2))
+body <- c(pilot_rows, main_rows, val_rows)
 txt <- paste0(paste(cols, collapse = ","), "\n", paste0(body, strrep(",", 7), "\n", collapse = ""))
 con <- file("ch07_run_sheet.csv", "wb")
 writeBin(c(as.raw(c(0xEF, 0xBB, 0xBF)), charToRaw(enc2utf8(txt))), con); close(con)
 rs <- read.csv("ch07_run_sheet.csv", fileEncoding = "UTF-8-BOM", check.names = FALSE)
-cat(sprintf("已寫出 ch07_run_sheet.csv：%d 列（預試驗 13 + 主實驗 24），13 欄\n", nrow(rs)))
-cat("預試驗：同一瓶約 4 % 的醋重新填樣 10 次，再對同一次填樣連續掃描 3 次；主實驗：8 濃度 x 3 區塊，依範例順序。\n")
+cat(sprintf("已寫出 ch07_run_sheet.csv：%d 列（預試驗 13 + 主實驗 24 + 驗證 12），%d 欄\n", nrow(rs), ncol(rs)))
+cat("預試驗：同一瓶約 4 % 的醋重新填樣 10 次（填樣 1-10），再對第 11 次填樣連續掃描 3 次（掃描雜訊檢查）；主實驗：8 濃度 x 3 區塊，依範例順序。\n")
+cat("驗證：4 個盲樣（盲樣A-D）各填樣 3 次，輪替順序 A1 B1 C1 D1 / B2 C2 D2 A2 / C3 D3 A3 B3；濃度欄留空（操作者不知道）。\n")
 cat("日期、操作者、光徑、瓶號、溫度、檔名、備註 7 欄留白，實驗時手填。列印版的計畫與檢查表見 ch07_record_sheet.md。\n")
 
-chk("run sheet: number of rows", nrow(rs), 37)
-chk("run sheet: pilot rows", sum(rs[[1]] == "預試驗"), 13)
-chk("run sheet: main rows", sum(rs[[1]] == "主實驗"), 24)
-chk("run sheet: main levels mismatch with example order", sum(rs[[4]][rs[[1]] == "主實驗"] != example), 0)
+chk("run sheet: number of rows", nrow(rs), 49)
+chk("run sheet: number of columns", ncol(rs), 14)
+chk("run sheet: pilot rows", sum(rs[["階段"]] == "預試驗"), 13)
+chk("run sheet: main rows", sum(rs[["階段"]] == "主實驗"), 24)
+chk("run sheet: validation rows", sum(rs[["階段"]] == "驗證"), 12)
+chk("run sheet: main levels mismatch with example order", sum(rs[["濃度_pct"]][rs[["階段"]] == "主實驗"] != example), 0)
+pl <- rs[rs[["階段"]] == "預試驗", ]
+chk("run sheet: pilot fill/scan pattern mismatches (fills 1-11, fill 11 scanned 3 times)",
+    sum(pl[["第幾次填樣"]] != c(1:10, 11, 11, 11)) + sum(pl[["第幾次掃描"]] != c(rep(1, 10), 1:3)), 0)
+vl <- rs[rs[["階段"]] == "驗證", ]
+chk("run sheet: validation order mismatches (A1 B1 C1 D1 B2 C2 D2 A2 C3 D3 A3 B3)",
+    sum(paste0(sub("盲樣", "", vl[["樣品"]]), vl[["第幾次填樣"]]) != val_seq), 0)
+chk("run sheet: validation concentration cells not blank", sum(!is.na(vl[["濃度_pct"]])), 0)
 show_checks("第 8 節")
 
 # ---- 動手改改看（第 8 節）----
 # 1. 用 Excel 開 ch07_run_sheet.csv，中文有亂碼嗎？（檔案含 BOM，應該不會）
-# 2. 預試驗為什麼要同時有「重新填樣 10 次」與「同一次填樣掃描 3 次」？兩者分別量到什麼誤差？
+# 2. 預試驗為什麼要同時有「重新填樣 10 次」與「第 11 次填樣掃描 3 次」？兩者分別量到什麼誤差？
 # 3. 主實驗第 k 區塊的「第幾次填樣」等於 k，為什麼？
+# 4. 驗證階段為什麼要由別人編碼盲樣、濃度欄留空？
 
 # =====================================================================
 # 總結
@@ -373,5 +387,5 @@ cat("4. 區間半寬隨填樣誤差成比例變大；配製誤差是填樣次數
 cat("5. 同樣 24 次測量：8 濃度 x 3 次可以做線性檢查（lof_df 6、pure_df 16）；只量兩端看不到彎曲。\n")
 cat("6. 測量順序：由低到高偏 6.5 %，隨機 +/- 2.7 %，分 3 區塊 +/- 0.93 %，範例順序只偏 0.069 %。\n")
 cat("7. 課堂 8 組各做 4 個濃度，每個濃度剛好 4 組。\n")
-cat("8. 已產生順序表（37 列）；紀錄表見 ch07_record_sheet.md。\n")
-cat("圖已存到", normalizePath(FIG_DIR), "\n")
+cat("8. 已產生順序表（49 列：預試驗 13 + 主實驗 24 + 驗證 12）；紀錄表見 ch07_record_sheet.md。\n")
+cat("圖已存到", basename(FIG_DIR), "\n")

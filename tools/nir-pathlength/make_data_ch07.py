@@ -49,7 +49,7 @@ def half_width(s_conc, m, xs, b=ft['b'], x0=4.0):
     return float((hi - lo) / 2)
 X83 = np.repeat(np.arange(8.0), 3); X8 = np.arange(8.0)
 SS = [0.1, 0.2, 0.4, 0.6, 1.0]
-# (a) 樂觀：只有填樣誤差，24 點彼此獨立
+# (a) 24 點當成彼此獨立：只在配製誤差為 0 時成立
 out['sens'] = {'s': SS, 'm1': [half_width(s, 1, X83) for s in SS], 'm3': [half_width(s, 3, X83) for s in SS]}
 # (b) 同一個稀釋濃度的 3 次填樣共用配製／參考值誤差 s_ref：改用 8 個濃度平均（n = 8，自由度 6），
 #     每點的變異 = s_ref² + s_fill²/3；未知樣品填 3 次 → s_fill²/3 + s_ref²（它的參考值誤差不進預測，但另一瓶的配製誤差會進斜率）
