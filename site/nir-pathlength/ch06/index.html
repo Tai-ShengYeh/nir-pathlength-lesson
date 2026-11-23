@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>資料品質與離群值</title>
+<link rel="stylesheet" href="../lib/engine.css">
+<link rel="expect" href="#bar" blocking="render"><!-- hold the first frame until the player exists, so the page transition can run -->
+</head>
+<body>
+<script src="../lib/engine.js"></script>
+<script src="../lib/zh-hant.js"></script>
+<script src="../lib/nirdata.js"></script>
+<script src="../lib/nirkit.js"></script>
+<script src="../lib/ch06data.js"></script>
+<script src="audio/zh/timings.js"></script>
+<script>
+'use strict';
+// 第 6 章：資料品質與離群值。數字全由 tools/nir-pathlength/make_data_ch06.py 算出（lib/ch06data.js），
+// 與 exercises/ch06_data_quality.* 一致。判斷規則（水帶高度在同光徑中位數 ±10 % 內）在看結果前由物理定義。
+const CHAPTER = { number: 6, title: '資料品質與離群值', minutes: 8, language: 'zh' };
+
+const WL6 = CH6.wl, WB6 = CH6.wb, ONE6 = CH6.one, Q25 = CH6.q25, PQ6 = CH6.pcaQ;
+const REFC6 = '#6fb0ff', OKBAND = 'rgba(111, 211, 160, .14)', MARKC = 'rgba(242, 193, 78, .16)';
+const f2 = v => fmt(v, 2);
+const inX = (ys, lo, hi) => [WL6.filter(w => w >= lo && w <= hi), ys.filter((_, i) => WL6[i] >= lo && WL6[i] <= hi)];
+const stem = (P, x, y0, y1, color, t0, w = 4) => { const e = path(P.g, `M${P.px(x)} ${P.py(y0)}V${P.py(y1)}`, { stroke: color, 'stroke-width': w }, { o: 0 }); show(e, t0); return e; };
+
+const BEATS = [
+  ['intro', '資料品質與離群值', (m, D) => {
+    const g = G(scene, { o: 0, y: 24 });
+    T(g, '第 6 章 · 近紅外光譜定量醋酸', { x: 800, y: 320, size: 30, fill: COL.dim, anchor: 'middle' });
+    T(g, '資料品質與離群值', { x: 800, y: 440, size: 84, weight: 700, anchor: 'middle' });
+    tw(g, { o: 1, y: 0 }, .2, 1.1, out);
+    const r = T(scene, '哪一筆量錯了？', { x: 800, y: 560, size: 42, fill: GOLD, anchor: 'middle', o: 0 });
+    show(r, m('sub'));
+    tw(g, { o: 0, y: -24 }, D - .9, .8); hide(r, D - .9, .8);
+  }],
+
+  ['ruler', '先找量尺', (m) => {
+    const p = panel(0);
+    nTitle(p, '量尺：同一瓶水量兩次差多少？');
+    const P = nPlot(p, [150, 170, 800, 470], [1340, 2410], [.3, 1.4], { xt: [1400, 1600, 1800, 2000, 2200], xl: '波長 nm', yt: [.4, .6, .8, 1, 1.2], yl: '吸光度（0.25 mm、水）', t0: .2 });
+    nCurve(P, WL6, CH6.rep.a, WATERC, m('two'), 1.2, 4);
+    nCurve(P, WL6, CH6.rep.b, GOLD, m('two') + 1, 1.2, 2, { 'stroke-dasharray': '8 6' });
+    nLegend(p, [['第 1 次', WATERC], ['第 2 次', GOLD]], 190, 200, m('two') + .5, 22);
+    nText(p, '兩條幾乎重疊', 1130, 230, m('diff'), { size: 28 });
+    nText(p, '差異 RMS：' + CH6.rep.rms.toFixed(4) + ' AU', 1130, 290, m('diff') + .8, { size: 28, fill: GOLD, weight: 700 });
+    nText(p, '最大差異：' + CH6.rep.max.toFixed(4) + ' AU', 1130, 335, m('diff') + 1.4, { size: 24, fill: COL.dim });
+    nText(p, '→ 儀器很穩定', 1130, 400, m('diff') + 2.4, { size: 28, fill: OKC, weight: 700 });
+    nText(p, '但其他條件都只量一次', 1130, 500, m('but'), { size: 28, fill: BADC, weight: 700 });
+    nText(p, '重新填樣的誤差多大？', 1130, 545, m('but') + 1, { size: 26 });
+    nText(p, '這份資料量不出來', 1130, 585, m('but') + 1.6, { size: 26, fill: COL.dim });
+  }],
+
+  ['waterband', '水帶高度', (m) => {
+    const p = panel(0);
+    nTitle(p, '醋大部分是水：比一比水帶高度');
+    const P = nPlot(p, [150, 170, 820, 470], [1350, 1760], [.35, .68], { xt: [1400, 1500, 1600, 1700], xl: '波長 nm', yt: [.4, .5, .6], yl: '吸光度（0.25 mm）', t0: .2 });
+    nBand(P, 1440, 1460, MARKC, 1, m('def'));
+    nBand(P, 1580, 1650, OKBAND, 1, m('def') + 1);
+    CH6.spec['0.25'].forEach((s, i) => nCurve(P, ...inX(s, 1350, 1760), SAMPC[i], m('four') + i * .4, 1, i === 2 ? 4 : 3));
+    nLegend(p, SAMPL.map((s, i) => [s, SAMPC[i]]), P.px(1655), P.py(.66), m('four') + .5, 20);
+    nText(p, '水帶高度 =', 1030, 250, m('def'), { size: 28, weight: 700, fill: GOLD });
+    nText(p, '1440–1460 nm 平均', 1030, 295, m('def') + .4, { size: 26, fill: GOLD });
+    nText(p, '− 1580–1650 nm 平坦區平均', 1030, 335, m('def') + 1, { size: 26, fill: OKC });
+    nText(p, '醋裡的水最多只少約 7 %', 1030, 440, m('rule'), { size: 26 });
+    nText(p, '→ 同一光徑的四瓶', 1030, 480, m('rule') + 1, { size: 26 });
+    nText(p, '應在中位數的 ±10 % 內', 1030, 520, m('rule') + 1.5, { size: 30, weight: 700, fill: GOLD });
+    nText(p, '規則先定好，再看結果', 1030, 590, m('rule') + 3, { size: 24, fill: COL.dim });
+  }],
+
+  ['check', '檢查結果', (m) => {
+    const p = panel(0);
+    nTitle(p, '水帶高度 ÷ 同光徑中位數');
+    const P = nPlot(p, [200, 170, 1000, 470], [-1, 14], [.6, 1.3], { xt: [], yt: [.7, .8, .9, 1, 1.1, 1.2], yl: '比值', t0: .2 });
+    const ok = path(P.g, `M${P.px(-1)} ${P.py(1.1)}H${P.px(14)}V${P.py(.9)}H${P.px(-1)}Z`, { fill: OKBAND, stroke: 'none' }, { o: 0 });
+    show(ok, .4);
+    nText(p, '±10 %', P.px(14) + 10, P.py(1) + 8, .6, { size: 22, fill: OKC });
+    [['0.25', 'p025'], ['0.5', 'p05'], ['1.0', 'p1']].forEach(([key, mark], g) => {
+      const t0 = m(mark), w = WB6[key], grey = !w.usable;
+      nText(p, (key === '1.0' ? '1' : key) + ' mm', P.px(g * 5 + 1.5), P.box[1] + P.box[3] + 40, t0, { size: 26, anchor: 'middle', fill: grey ? COL.dim : PATHC[key === '1.0' ? 1 : Number(key)], weight: 700 });
+      w.ratio.forEach((r, i) => {
+        const x = g * 5 + i, bad = w.flag[i], c = grey ? COL.dim : bad ? BADC : SAMPC[i];
+        stem(P, x, 1, r, c, t0 + .2 + i * .2, 4);
+        nDot(P.g, P.px(x), P.py(r), bad ? 13 : 10, c, t0 + .3 + i * .2);
+      });
+      if (grey) nText(p, '水帶峰值 ' + w.peak.toFixed(1) + ' > 1.5，只當參考', P.px(g * 5 + 1.5), P.box[1] + P.box[3] + 74, t0 + 1, { size: 20, anchor: 'middle', fill: COL.dim });
+    });
+    const r1 = WB6['0.25'].ratio[2], r2 = WB6['0.5'].ratio[1];
+    nText(p, '0.25 mm、4.87 %：' + f2(r1), 1300, 260, m('flags'), { size: 26, fill: BADC, weight: 700 });
+    nText(p, '水帶少了約四分之一', 1300, 300, m('flags') + .6, { size: 24 });
+    nText(p, '0.5 mm、3.32 %：' + f2(r2), 1300, 400, m('flags') + 2.5, { size: 26, fill: BADC, weight: 700 });
+    nText(p, '比純水還多的水？', 1300, 440, m('flags') + 3.1, { size: 24 });
+    nText(p, '→ 不是醋本身的問題', 1300, 480, m('flags') + 3.8, { size: 24, fill: GOLD });
+    nText(p, '而是填樣或光徑', 1300, 520, m('flags') + 4.3, { size: 24, fill: GOLD });
+  }],
+
+  ['q1', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-water', prompt: ['0.5 mm 的 3.32 % 那瓶，水帶高度是同光徑中位數的 1.17 倍。最合理的解釋是什麼？'],
+    build: choice([['填樣或光徑出了問題（例如液層較厚、氣泡、基線偏移），應該重新填樣再量'], ['這瓶醋的含水量比純水還多'], ['這瓶醋的酸度特別高']], 0,
+      '醋的水只會比純水少，不會更多。比值超過 1 很多，只能來自量測過程，而不是醋本身。',
+      [null, '醋的水只會比純水少，不可能更多。', '酸度越高，水越少，水帶應該變低，不是變高。']),
+  }], done) }],
+
+  ['autotrap', '自動偵測的陷阱', (m) => {
+    const p = panel(0);
+    nTitle(p, '20 條光譜一起做 PCA，看 Q 殘差排名');
+    const P = nPlot(p, [200, 170, 950, 450], [-1, 24], [0, 1.6], { xt: [], yt: [0, .5, 1, 1.5], yl: 'Q 殘差', t0: .2 });
+    const top = PQ6.rank.slice(0, 3);
+    PQ6.q.forEach((q, k) => {
+      const g = Math.floor(k / 4), i = k % 4, x = g * 5 + i, pth = PQ6.path[k];
+      const flagged = (pth === .25 && i === 2) || (pth === .5 && i === 1);
+      nBar(P.g, P.px(x), 30, P.py(0), P.py(q), flagged ? BADC : PATHC[pth], m('all') + g * .4 + i * .08);
+      if (top.includes(k)) nText(p, '#' + (top.indexOf(k) + 1), P.px(x), P.py(q) - 12, m('top') + top.indexOf(k) * .4, { size: 22, anchor: 'middle', fill: GOLD, weight: 700 });
+    });
+    PATHS.forEach((pth, g) => nText(p, pstr(pth), P.px(g * 5 + 1.5), P.box[1] + P.box[3] + 40, m('all') + g * .4, { size: 22, anchor: 'middle', fill: PATHC[pth], weight: 700 }));
+    nText(p, '第 1、2 名：2 mm（飽和）', 1220, 250, m('top'), { size: 26, fill: GOLD, weight: 700 });
+    nText(p, '紅色＝水帶檢查抓到的兩條', 1220, 330, m('ours'), { size: 24, fill: BADC });
+    nText(p, '排第 ' + PQ6.rank_of_flagged['0.25-4.87'] + ' 和第 ' + PQ6.rank_of_flagged['0.5-3.32'] + ' 名', 1220, 370, m('ours') + .6, { size: 24, fill: BADC });
+    nText(p, '光徑混在一起，', 1220, 470, m('lesson'), { size: 26 });
+    nText(p, '比到的是光徑，不是品質', 1220, 510, m('lesson') + .5, { size: 26, fill: GOLD, weight: 700 });
+    nText(p, '先分組，同類相比', 1220, 570, m('lesson') + 2, { size: 26, fill: OKC, weight: 700 });
+    nText(p, '樣品這麼少，也沒有可靠的門檻', 1220, 620, m('lesson') + 3.5, { size: 22, fill: COL.dim });
+  }],
+
+  ['residual', '大殘差從哪來', (m) => {
+    const p = panel(0);
+    nTitle(p, '1 mm：哪一瓶的交叉驗證誤差最大？');
+    const P = nPlot(p, [170, 170, 820, 470], [-.6, 3.6], [-2.5, 4.5], { xt: [], yt: [-2, 0, 2, 4], yl: '留一誤差（酸度 %）', t0: .2 });
+    nHLine(P, 0, COL.dim, .4);
+    SAMPL.forEach((s, i) => nText(p, s, P.px(i), P.box[1] + P.box[3] + 40, .4, { size: 22, anchor: 'middle', fill: SAMPC[i] }));
+    ONE6.loo_atago.forEach((e, i) => nBar(P.g, P.px(i) - 22, 40, P.py(0), P.py(e), REFC6, m('atago') + i * .2));
+    nText(p, 'Atago 參考值', 1060, 230, m('atago'), { size: 26, fill: REFC6, weight: 700 });
+    nText(p, '7.45 % 誤差 ' + f2(ONE6.loo_atago[3]) + ' %，最大', 1060, 275, m('big'), { size: 24 });
+    nText(p, '它的水帶比值 ' + f2(ONE6.wb_ratio[3]) + '：光譜看來正常', 1060, 320, m('spec'), { size: 24, fill: COL.dim });
+    ONE6.loo_titr.forEach((e, i) => nBar(P.g, P.px(i) + 22, 40, P.py(0), P.py(e), GOLD, m('titr') + i * .2));
+    nText(p, '改用滴定參考值', 1060, 420, m('titr'), { size: 26, fill: GOLD, weight: 700 });
+    nText(p, 'RMSECV ' + f2(ONE6.rmse_atago) + ' → ' + f2(ONE6.rmse_titr) + ' %', 1060, 465, m('titr') + .8, { size: 26, fill: GOLD });
+    nText(p, '這瓶：Atago 7.45 %，滴定 ' + f2(ONE6.titr[3]) + ' %', 1060, 510, m('titr') + 1.8, { size: 22, fill: COL.dim });
+    nText(p, '大殘差只說「有東西不對」：', 1060, 600, m('why'), { size: 24, weight: 700 });
+    nText(p, '光譜、參考值、直線都有可能', 1060, 640, m('why') + .6, { size: 24, fill: GOLD, weight: 700 });
+  }],
+
+  ['q2', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 130, w: 940, cls: 'side' }, [{
+    id: 'c-resid', prompt: ['某一點的交叉驗證誤差最大。這代表什麼？'],
+    build: choice([['有東西不對，但可能是光譜、參考值或直線本身，要逐一檢查'], ['這條光譜量錯了，刪掉就好'], ['這點濃度最高，誤差大是正常的，不用管']], 0,
+      '1 mm 的 7.45 % 那瓶誤差最大，但光譜正常；換成滴定參考值後，誤差就變小了。',
+      [null, '它的光譜通過了水帶檢查；問題出在參考值。', '誤差大一定有原因，要找出來。']),
+  }], done) }],
+
+  ['tempt', '刪掉最大殘差', (m) => {
+    const p = panel(0);
+    nTitle(p, '如果把一瓶刪掉，R² 會怎樣？（1 mm、Atago）');
+    const P = nPlot(p, [200, 170, 800, 470], [-.6, 3.6], [.9, 1.0], { xt: [], yt: [.9, .92, .94, .96, .98, 1], yl: 'R²（剩下 3 點）', t0: .2 });
+    nHLine(P, ONE6.r2_atago, COL.dim, .4);
+    nText(p, '虛線：4 點全用 R² ' + ONE6.r2_atago.toFixed(3), 1080, 200, .6, { size: 22, fill: COL.dim });
+    SAMPL.forEach((s, i) => nText(p, '刪 ' + s, P.px(i), P.box[1] + P.box[3] + 40, .4, { size: 22, anchor: 'middle', fill: SAMPC[i] }));
+    ONE6.drop_r2.forEach((r, i) => {
+      nBar(P.g, P.px(i), 70, P.py(.9), P.py(r), i === 3 ? BADC : SAMPC[i], m('drop') + i * .3);
+      nText(p, r.toFixed(i === 3 ? 4 : 3), P.px(i), P.py(r) - 12, m('drop') + .6 + i * .3, { size: 22, anchor: 'middle', fill: i === 3 ? BADC : COL.chalk, weight: 700 });
+    });
+    nText(p, '刪掉 7.45 %：R² ' + ONE6.drop_r2[3].toFixed(4), 1080, 260, m('best'), { size: 28, fill: BADC, weight: 700 });
+    nText(p, '看起來近乎完美', 1080, 300, m('best') + .6, { size: 24 });
+    nText(p, '但它的光譜沒問題，', 1080, 400, m('why'), { size: 26 });
+    nText(p, '問題在參考值', 1080, 440, m('why') + .6, { size: 26, fill: GOLD, weight: 700 });
+    nText(p, '刪掉殘差最大的點，', 1080, 540, m('rule'), { size: 26 });
+    nText(p, 'R² 幾乎一定變好', 1080, 580, m('rule') + .5, { size: 26 });
+    nText(p, '→ 分數不能當刪除的理由', 1080, 630, m('rule') + 1.5, { size: 28, fill: GOLD, weight: 700 });
+  }],
+
+  ['fixit', '修正救得了嗎', (m) => {
+    const p = panel(0);
+    nTitle(p, '0.25 mm 那條可疑光譜：修正？刪掉？');
+    const cols = [['處理方式', 330], ['校正點', 760], ['R²', 960], ['RMSECV（%）', 1220]];
+    cols.forEach(([s, x]) => nText(p, s, x, 220, .3, { size: 24, fill: COL.dim, anchor: 'middle' }));
+    const row = (y, name, n, r2, rm, color, t0) => [[name, 330], [String(n), 760], [r2.toFixed(3), 960], [f2(rm), 1220]].forEach(([s, x], k) =>
+      nText(p, s, x, y, t0 + k * .2, { size: 30, anchor: 'middle', fill: k === 3 ? color : COL.chalk, weight: k === 3 ? 700 : 500 }));
+    row(300, '原始數據', 4, Q25.r2, Q25.rmse, OKC, m('orig'));
+    row(390, '用水帶比值 ' + f2(WB6['0.25'].ratio[2]) + ' 修正', 4, Q25.r2_fixed, Q25.rmse_fixed, BADC, m('fixed'));
+    row(480, '刪掉 4.87 %', 3, Q25.r2_drop, Q25.rmse_drop, BADC, m('drop'));
+    nText(p, '修正規則事先定好，分數卻變差；刪掉更差', 800, 590, m('drop') + 2, { size: 28, anchor: 'middle', fill: GOLD, weight: 700 });
+    nText(p, '只有 4 點時，分數無法判斷哪一個才對', 800, 645, m('only'), { size: 28, anchor: 'middle' });
+    nText(p, '唯一的辦法：重新填樣再量', 800, 715, m('only') + 2, { size: 34, anchor: 'middle', fill: OKC, weight: 700 });
+  }],
+
+  ['flow', '處理流程', (m) => {
+    const p = panel(0);
+    nTitle(p, '發現可疑數據時，怎麼做？');
+    [['先定規則，再看資料（用物理或量尺定門檻）', 's1'], ['同類相比：同光徑、同條件', 's2'], ['找原因：填樣、氣泡、光徑、參考值', 's3'],
+     ['重新填樣，量 3 次', 's4'], ['紀錄：保留原始數據，報告有無該點的兩種結果', 's5']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 210 + i * 105, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: i === 3 ? OKC : GOLD }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 34, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+    nText(p, '不要因為「刪了分數比較好」就刪；也不要悄悄刪掉', 800, 760, m('never'), { size: 28, anchor: 'middle', fill: BADC, weight: 700 });
+  }],
+
+  ['q3', '小測驗', () => {}, { ask: done => quiz({ x: 330, y: 110, w: 940, cls: 'side' }, [{
+    id: 'c-ok', prompt: ['下列做法合理嗎？'],
+    build: grid([
+      { parts: ['水帶高度超出事先定好的 ±10 %，重新填樣再量'], ans: ['ok'], why: '規則先定好，又有物理理由，重測是正確做法。' },
+      { parts: ['刪掉一點後 R² 從 0.93 變成 0.999，所以刪掉'], ans: ['no'], why: '刪掉殘差最大的點，R² 幾乎一定變好；分數不是理由。' },
+      { parts: ['報告保留原始數據，並寫出有無該點的兩種結果'], ans: ['ok'], why: '讀者可以自己判斷處理的影響。' },
+      { parts: ['把重測的數據換上去，報告裡不提'], ans: ['no'], why: '悄悄換掉數據，讀者無法評估；要寫出來。' },
+    ], [['ok', '合理'], ['no', '不合理']], { multi: false, text: true }),
+  }], done) }],
+
+  ['wrap', '總結', (m) => {
+    const p = panel(0);
+    nTitle(p, '總結');
+    [['先定規則再看資料：門檻來自物理或量尺。', 'w1'], ['同類相比：不同光徑混在一起會比錯東西。', 'w2'],
+     ['大殘差不等於壞光譜：參考值也可能錯。', 'w3'], ['不靠分數刪資料：重新填樣，並紀錄。', 'w4']].forEach(([str, mark], i) => {
+      const g = G(p, { x: -16, y: 230 + i * 120, o: 0 });
+      mk('circle', { cx: 200, cy: -12, r: 28, fill: GOLD }, g);
+      T(g, String(i + 1), { x: 200, y: -1, size: 32, fill: COL.board, weight: 700, anchor: 'middle' });
+      T(g, str, { x: 260, size: 38, weight: 600 });
+      tw(g, { o: 1, x: 0 }, m(mark), .6);
+    });
+    nText(p, '下一次實驗：每個濃度重新填樣 3 次，就有填樣誤差的量尺', 800, 740, m('end'), { size: 30, fill: GOLD, anchor: 'middle' });
+  }],
+
+  ['final1', '本章練習', () => { panel(0); }, { ask: done => quiz(SCREEN, [{
+    id: 'p-ratio', prompt: ['某光徑四瓶的水帶高度是 0.20、0.19、0.15、0.19，中位數 0.19。0.15 那瓶的比值是多少？（小數第二位）'],
+    build: blanks([{ parts: ['比值 ≈ ', { box: '0.79' }], why: '0.15 ÷ 0.19 = 0.789，約 0.79。', hint: '比值 = 水帶高度 ÷ 中位數。' }]),
+  }, {
+    id: 'p-flag', prompt: ['依照「±10 % 以內才算正常」的規則，比值 0.79 的那瓶應該怎麼處理？'],
+    build: choice([['列為可疑，找原因並重新填樣再量'], ['正常，不用處理'], ['直接刪掉，不必紀錄']], 0,
+      '0.79 超出 0.90–1.10，是可疑數據；處理方式是重測並紀錄，不是直接刪掉。',
+      [null, '0.79 低於 0.90，超出規則。', '刪除要有紀錄；更好的做法是重測。']),
+  }, {
+    id: 'p-pca', prompt: ['把 5 種光徑的 20 條光譜一起做 PCA，Q 殘差最大的是 2 mm 光譜。最可能的原因是？'],
+    build: choice([['2 mm 已飽和，光譜不再和光徑成正比，PCA 抓到的是非線性'], ['2 mm 的填樣全部失敗'], ['PCA 算錯了']], 0,
+      '不同光徑混在一起時，Q 反映的是光徑與飽和的差異，不是量測品質。要先分組再比。',
+      [null, '2 mm 的四條光譜彼此一致，只是飽和。', 'PCA 沒有算錯，是比較的對象選錯了。']),
+  }], done, '本章練習') }],
+
+  ['finish', '完成', () => { panel(0); }, { ask: finishCard }],
+].map(([id, title, run, extra]) => ({ id, title, run, ...extra }));
+
+boot();
+</script>
+</body>
+</html>

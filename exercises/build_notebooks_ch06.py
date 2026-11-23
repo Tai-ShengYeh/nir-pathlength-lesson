@@ -1,0 +1,496 @@
+# -*- coding: utf-8 -*-
+# 第 6 章：由「同一份」cell 定義生成本機版與 Colab 版筆記本。用法：python build_notebooks_ch06.py
+import base64, gzip, os
+import nbformat as nbf
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+DATA_CSV = os.path.join(HERE, '..', 'data', 'spectra_long.csv')
+MD, CODE = 'md', 'code'
+COMMON = []
+
+
+def md(s):
+    COMMON.append((MD, s.strip('\n')))
+
+
+def code(s):
+    COMMON.append((CODE, s.strip('\n')))
+
+
+md(r'''
+# 第 6 章 資料品質與離群值：程式練習
+
+**目標**：看到「可疑」的光譜時怎麼辦？學會用**事先固定的規則**（水帶高度）、**同類相比**找出可疑樣品，
+看懂為什麼自動離群偵測（把不同光徑混在一起做 PCA）會抓錯對象，以及為什麼**不能因為 R² 變好看就刪資料**。
+
+| 節 | 內容 |
+|---|---|
+| 0 | 載入資料、事先固定的規則 |
+| 1 | 量尺：0.25 mm 純水的兩次重複 |
+| 2 | 水帶高度檢查：同光徑 4 瓶互相比，規則事先定好 |
+| 3 | PCA 陷阱：20 條混光徑的光譜做 PCA，Q 殘差排名 |
+| 4 | 1 mm、2258 nm 二階導數：留一法（LOO）誤差，Atago vs 滴定參考值 |
+| 5 | Drop-one：拿掉一個點，R² 會怎麼變 |
+| 6 | 0.25 mm：修正或刪掉可疑的那一瓶，三種處理三種分數 |
+| 7 | 決策流程總結 |
+
+只用 numpy、pandas、matplotlib、scipy（`savgol_filter` 做二階導數）。圖上文字一律用英文（Colab 沒有中文字型）。
+每節結尾有「動手改改看」，並附該節的**自我驗證 PASS/FAIL**。
+
+**事先固定的規則（看結果之前就定好，事後不准改）**
+- 水帶高度 = 1440–1460 nm 平均吸光度 − 1580–1650 nm（平坦區）平均吸光度。
+- 同一光徑 4 瓶的水帶高度各自除以該光徑 4 瓶的**中位數** = 比值；|比值 − 1| > 0.10 就標「可疑」（醋裡的水最多少約 7 %，同光徑的水帶高度應該相差不到 10 %）。
+- 該光徑 1440–1460 nm 的最大吸光度 ≥ 1.5 時水帶已飽和，這個檢查**不能用**。
+- 二階導數：Savitzky–Golay 9 點、二次多項式、點距 1（與第 3、4、5 章相同），取 2258 nm，乘 10³。
+''')
+
+md(r'''
+## 0. 載入資料
+
+- 資料：5 種光徑（0.25、0.5、1、2、5 mm）× 4 瓶（Atago 讀值 0、3.32、4.87、7.45 %），只用**重複 1**，共 20 條光譜，列依「光徑、酸度」排序。
+- 例外：0.25 mm 的純水另外量了第二次（重複 2），是本資料裡**唯一**的一對真正重複（第 1 節用）。
+''')
+
+code(r'''
+import numpy as np, pandas as pd
+import matplotlib.pyplot as plt
+from scipy.signal import savgol_filter
+
+np.set_printoptions(precision=5, linewidth=130)
+plt.rcParams['figure.dpi'] = 90
+
+# ---- 事先固定的設定 ----
+SG_WIN = 9                    # 二階導數：Savitzky-Golay 9 點、二次多項式
+WL0 = 2258                    # 單一波長（nm）
+WB_LO = (1440, 1460)          # 水帶區（nm）
+FLAT_LO = (1580, 1650)        # 平坦區（nm），同第 1 章估雜訊的區域
+TOL_WB = 0.10                 # 水帶比值容許範圍 +/-10 %
+SAT = 1.5                     # 最大吸光度 >= 1.5：水帶飽和，不能用這個檢查
+CONC = [0.0, 3.32, 4.87, 7.45]        # Atago 讀值（%）
+PATHS = [0.25, 0.5, 1.0, 2.0, 5.0]    # 光徑（mm）
+
+# ---- 自我驗證的小工具：每節結尾呼叫 show_checks() ----
+checks = []
+_shown = 0
+def chk(name, got, key, tol):
+    checks.append((bool(abs(got - key) <= tol), name, float(got), key))
+
+def chk4(name, got, key):
+    """答案是四位有效數字（第 4 位四捨五入），容許誤差 = 第 4 位的半個單位。"""
+    tol = 1e-4 if key == 0 else 0.5 * 10 ** (np.floor(np.log10(abs(key))) - 3) * 1.001
+    chk(name, got, key, tol)
+
+def show_checks(title):
+    global _shown
+    rows = checks[_shown:]
+    print('\n[自我驗證] %s' % title)
+    print('%-6s | %-52s | %11s | %11s' % ('result', 'item', 'yours', 'key')); print('-' * 88)
+    for ok, name, got, key in rows:
+        print('%-6s | %-52s | %11.5g | %11.5g' % ('PASS' if ok else 'FAIL', name, got, key))
+    print('本節：%d / %d PASS' % (sum(r[0] for r in rows), len(rows)))
+    _shown = len(checks)
+''')
+
+code(r'''
+df = pd.read_csv(DATA_PATH)
+r1 = df[df['replicate'] == 1]
+w = r1.pivot_table(index=['path_mm', 'acid_pct'], columns='wavelength_nm', values='absorbance').sort_index()
+wl = w.columns.values; X = w.values                                   # X：20 條光譜 x 波長，列依光徑、酸度排序
+Pv = w.index.get_level_values(0).values; Cv = w.index.get_level_values(1).values
+row = lambda p, c: int(np.where(np.isclose(Pv, p) & np.isclose(Cv, c))[0][0])   # 光徑 p、酸度 c 那一列
+print('光譜矩陣 X：%d 條光譜 x %d 個波長（%.0f-%.0f nm）' % (X.shape[0], X.shape[1], wl.min(), wl.max()))
+print('光徑（mm）：', PATHS, '；每個光徑的 4 瓶 Atago 酸度（%）：', CONC)
+print('本章只有一對「真正的重複」：0.25 mm 的純水量了兩次（replicate 1、2）；其餘都只量 1 次。')
+''')
+
+md(r'''
+### 動手改改看（第 0 節）
+1. 為什麼要把判斷規則寫在最前面（看結果之前），而不是看完圖再決定門檻？
+2. 20 條光譜裡有幾對重複？這會限制我們能回答哪些問題？
+''')
+
+md(r'''
+## 1. 量尺：同一個光徑的重複有多像
+
+0.25 mm 的純水量了兩次。兩次相減的 RMS 與最大絕對差，是我們判斷「差多少算異常」的量尺。
+**注意**：這是唯一一對重複，而且是純水；裝樣（fill）造成的誤差、酸液樣品的重複性，都量不到。
+''')
+
+code(r'''
+rep = (df[np.isclose(df['path_mm'], 0.25) & (df['sample'] == 'water')]
+       .pivot_table(index='replicate', columns='wavelength_nm', values='absorbance').sort_index().values)
+dif = rep[1] - rep[0]
+rms = float(np.sqrt(np.mean(dif ** 2))); mx = float(np.abs(dif).max())
+print('兩次重複相減：RMS = %.6f AU；最大絕對差 = %.6f AU' % (rms, mx))
+print('這是本資料裡「同一瓶、同一光徑」唯一的一對重複，代表儀器雜訊加上這一次的操作差異。')
+print('注意：只有這一對，而且是純水。重新裝樣（fill）造成的誤差、酸液樣品的重複性，都量不到。')
+
+fig, axs = plt.subplots(2, 1, figsize=(8, 5.6), sharex=True)
+axs[0].plot(wl, rep[0], color='steelblue', lw=2, label='replicate 1')
+axs[0].plot(wl, rep[1], color='darkorange', lw=1.5, ls='--', label='replicate 2')
+axs[0].set_ylabel('absorbance (AU)'); axs[0].set_title('0.25 mm water, two replicates'); axs[0].legend(fontsize=8)
+axs[1].plot(wl, dif * 1e3, color='firebrick'); axs[1].axhline(0, color='grey', ls=':')
+axs[1].set_ylabel('difference (x 1e-3 AU)'); axs[1].set_xlabel('wavelength (nm)')
+axs[1].set_title('replicate 2 - replicate 1  (RMS = %.2e AU, max = %.2e AU)' % (rms, mx), fontsize=9)
+plt.tight_layout(); plt.show()
+
+chk4('replicate difference RMS (AU)', rms, 0.001236)
+chk4('replicate difference max |diff| (AU)', mx, 0.004527)
+show_checks('第 1 節')
+''')
+
+md(r'''
+### 動手改改看（第 1 節）
+1. RMS 差 0.0012 AU 與純水在 0.25 mm 的訊號（約 0.4 AU）相比有多小？這個數字能當成「裝樣誤差」嗎？為什麼不行？
+2. 要量得到「裝樣誤差」，實驗上至少要多做什麼？
+''')
+
+md(r'''
+## 2. 水帶高度檢查：規則先定好，同光徑 4 瓶互相比
+
+水帶高度 = 1440–1460 nm 平均吸光度 − 1580–1650 nm 平均吸光度。同一光徑的 4 瓶，水帶高度都除以這 4 瓶的**中位數**，
+|比值 − 1| > 0.10 就標記為可疑。最大吸光度 ≥ 1.5 的光徑，水帶已飽和，這個檢查不能用。
+''')
+
+code(r'''
+WB = (wl >= WB_LO[0]) & (wl <= WB_LO[1]); FLAT = (wl >= FLAT_LO[0]) & (wl <= FLAT_LO[1])
+wb = {}
+for p in PATHS:
+    rr = [row(p, c) for c in CONC]
+    h = np.array([X[r, WB].mean() - X[r, FLAT].mean() for r in rr])
+    peak = float(max(X[r, WB].max() for r in rr))
+    ratio = h / np.median(h); usable = peak < SAT
+    flag = usable & (np.abs(ratio - 1) > TOL_WB)
+    wb[p] = dict(h=h, ratio=ratio, peak=peak, usable=usable, flag=flag)
+    print('光徑 %-4g mm：水帶最大吸光度 %.3f -> %s' % (p, peak, '可用' if usable else '水帶已飽和，不能用這個檢查'))
+    print('   比值（0, 3.32, 4.87, 7.45 %%）：%s' % ', '.join('%.4g' % v for v in ratio))
+    if flag.any():
+        print('   >>> 可疑：%s %% 那瓶（偏離中位數 %.2f %%）' % (', '.join(str(c) for c, f in zip(CONC, flag) if f), 100 * np.abs(ratio[flag] - 1)[0]))
+print('\n0.25 mm 的 4.87 % 那瓶比值 0.7723（水帶低 22.8 %），0.5 mm 的 3.32 % 那瓶比值 1.17（高 17 %）。')
+print('1 mm 以上水帶吸光度 >= 1.5：這個檢查會失靈（飽和讓水帶高度變得不隨裝樣量變），所以「沒有被標記」不等於「沒有問題」。')
+
+fig, ax = plt.subplots(figsize=(8, 4.6))
+ax.axhspan(1 - TOL_WB, 1 + TOL_WB, color='steelblue', alpha=0.12)
+ax.axhline(1, color='steelblue'); ax.axhline(1 - TOL_WB, color='steelblue', ls=':'); ax.axhline(1 + TOL_WB, color='steelblue', ls=':')
+for i, p in enumerate(PATHS):
+    d = wb[p]; xj = i + np.array([-0.15, -0.05, 0.05, 0.15])
+    for k in range(4):
+        if d['flag'][k]:
+            ax.plot(xj[k], d['ratio'][k], '^', color='red', ms=9)
+        elif d['usable']:
+            ax.plot(xj[k], d['ratio'][k], 'o', color='k', ms=7)
+        else:
+            ax.plot(xj[k], d['ratio'][k], 'o', mfc='none', mec='grey', ms=7)
+ax.plot([], [], 'ko', label='ok'); ax.plot([], [], '^', color='red', label='flagged (> 10 %)')
+ax.plot([], [], 'o', mfc='none', mec='grey', label='path not usable (saturated)')
+ax.set_xticks(range(len(PATHS))); ax.set_xticklabels(PATHS); ax.set_xlabel('path length (mm)')
+ax.set_ylabel('water-band height / median of 4 bottles'); ax.set_ylim(0.7, 1.25)
+ax.set_title('Water-band ratio per path (rule: |ratio - 1| <= 0.10)'); ax.legend(fontsize=8, loc='upper right')
+plt.tight_layout(); plt.show()
+
+r25, r5, r1m = wb[0.25], wb[0.5], wb[1.0]
+chk4('0.25 mm ratio, 0 %', r25['ratio'][0], 1.045)
+chk4('0.25 mm ratio, 3.32 %', r25['ratio'][1], 1.014)
+chk4('0.25 mm ratio, 4.87 %', r25['ratio'][2], 0.7723)
+chk4('0.25 mm ratio, 7.45 %', r25['ratio'][3], 0.9862)
+chk4('0.5 mm ratio, 0 %', r5['ratio'][0], 0.9988)
+chk4('0.5 mm ratio, 3.32 %', r5['ratio'][1], 1.17)
+chk4('0.5 mm ratio, 4.87 %', r5['ratio'][2], 1.001)
+chk4('0.5 mm ratio, 7.45 %', r5['ratio'][3], 0.9762)
+chk4('1 mm ratio, 0 %', r1m['ratio'][0], 1.02)
+chk4('1 mm ratio, 3.32 %', r1m['ratio'][1], 1.005)
+chk4('1 mm ratio, 4.87 %', r1m['ratio'][2], 0.9952)
+chk4('1 mm ratio, 7.45 %', r1m['ratio'][3], 0.9711)
+chk('0.25 mm: flagged bottle is 4.87 % (index 3)', int(np.where(r25['flag'])[0][0]) + 1, 3, 0)
+chk('0.5 mm: flagged bottle is 3.32 % (index 2)', int(np.where(r5['flag'])[0][0]) + 1, 2, 0)
+chk('1 mm: number of flags (rule not usable)', int(r1m['flag'].sum()), 0, 0)
+chk4('1 mm: peak A in 1440-1460 nm', r1m['peak'], 1.645)
+chk('1 mm: usable (1 = yes)', float(r1m['usable']), 0, 0)
+show_checks('第 2 節')
+''')
+
+md(r'''
+### 動手改改看（第 2 節）
+1. 把 `TOL_WB` 改成 0.05 或 0.20，被標記的瓶子會怎麼變？這個門檻能「看完結果再調」嗎？
+2. 為什麼用「同光徑 4 瓶的中位數」當基準，而不是平均？（提示：中位數對一個離群值不敏感）
+3. 1 mm 比值全都在 ±3 % 以內，卻不能說這 4 瓶都沒問題。為什麼？
+''')
+
+md(r'''
+## 3. PCA 陷阱：20 條不同光徑的光譜一起做
+
+把全部 20 條重複 1 的原始光譜（5 光徑 × 4 瓶）平均置中、不縮放，取 2 個主成分；
+**Q 殘差**是兩個成分解釋不了的平方和，Q 越大代表越「不像模型」，常被拿來當自動離群偵測。
+看它抓到的是哪幾條。
+''')
+
+code(r'''
+Xc = X - X.mean(axis=0)                                    # 平均置中，不縮放
+U, Sv, Vt = np.linalg.svd(Xc, full_matrices=False)
+scores = Xc @ Vt[:2].T                                     # 2 個成分的分數
+Q = ((Xc - scores @ Vt[:2]) ** 2).sum(axis=1)              # Q 殘差：兩個成分解釋不了的平方和
+ordq = np.argsort(-Q)                                      # Q 由大到小
+lab = ['%g mm / %g %%' % (p, c) for p, c in zip(Pv, Cv)]
+ev = Sv ** 2 / (Sv ** 2).sum()
+print('前兩個成分解釋的變異：%.2f %%、%.2f %%' % (100 * ev[0], 100 * ev[1]))
+print('Q 由大到小前 8 名：')
+for k in range(8):
+    print('  第 %d 名：%-16s Q = %.4f' % (k + 1, lab[ordq[k]], Q[ordq[k]]))
+rk = lambda p, c: int(np.where(ordq == row(p, c))[0][0]) + 1
+print('前一節標記的兩瓶：0.25 mm / 4.87 %% 排第 %d，0.5 mm / 3.32 %% 排第 %d。' % (rk(0.25, 4.87), rk(0.5, 3.32)))
+print('前三名是 2 mm 純水、2 mm 3.32 %、0.25 mm 4.87 %：2 mm 的兩條只是「光徑不同、飽和更嚴重」，不是壞瓶。')
+print('教訓：把不同光徑混在一起做 PCA，模型主要在描述光徑；Q 排名會被光徑的非線性主導，抓不到真正的問題瓶。')
+
+fig, ax = plt.subplots(figsize=(9.5, 4.8))
+flagged = [row(0.25, 4.87), row(0.5, 3.32)]
+ax.bar(range(len(Q)), Q, color=['red' if i in flagged else 'steelblue' for i in range(len(Q))])
+ax.set_xticks(range(len(Q))); ax.set_xticklabels(lab, rotation=90, fontsize=7)
+ax.set_ylabel('Q residual (2 PCs)'); ax.set_title('PCA Q residual of 20 raw spectra (red = flagged by water-band rule)')
+plt.tight_layout(); plt.show()
+
+chk4('Q of 0.25 mm / 4.87 %', Q[row(0.25, 4.87)], 1.296)
+chk('rank 1 by Q is 2 mm water (row 13)', int(ordq[0]) + 1, 13, 0)
+chk('rank 2 by Q is 2 mm 3.32 % (row 14)', int(ordq[1]) + 1, 14, 0)
+chk('rank 3 by Q is 0.25 mm 4.87 % (row 3)', int(ordq[2]) + 1, 3, 0)
+chk('rank of 0.25 mm 4.87 % (flagged)', rk(0.25, 4.87), 3, 0)
+chk('rank of 0.5 mm 3.32 % (flagged)', rk(0.5, 3.32), 8, 0)
+show_checks('第 3 節')
+''')
+
+md(r'''
+### 動手改改看（第 3 節）
+1. 只取 0.25 mm 的 4 條光譜（`X[0:4]`）做 PCA，4.87 % 那條還是 Q 最大嗎？（比較 4 個 Q 是否仍以 1.296 那條最高）
+2. 0.5 mm 的 3.32 % 為什麼只排第 8？PCA 偵測不到它，但水帶規則抓得到，差別在哪？
+3. 為什麼說「離群值偵測的結果，必須先問『相對於誰』」？
+''')
+
+md(r'''
+## 4. 1 mm、2258 nm 二階導數：大殘差不等於壞光譜
+
+1 mm 的 4 瓶，2258 nm 二階導數訊號（× 10³）對酸度做**反向校正** y = a + b·c。
+**留一法（LOO）**：每次拿掉一瓶，用其餘 3 瓶建線，預測被拿掉那瓶的酸度，誤差 = 預測 − 參考。
+同一組光譜分別用 Atago 讀值與滴定值（V × 1.07875 × 0.24 %）當參考，比較 RMSE 與 R²。
+''')
+
+code(r'''
+D = savgol_filter(X, SG_WIN, 2, deriv=2, axis=1)           # 20 x 波長 二階導數（點距 1）
+j = int(np.argmin(np.abs(wl - WL0)))                       # 最接近 2258 nm 的波長
+m1 = [row(1.0, c) for c in CONC]
+y1 = D[m1, j] * 1e3                                        # 1 mm 的 4 個訊號 y（x 10^-3）
+atago = np.array(CONC)
+titr = np.array([0.0] + [v * 1.07875 * 0.24 for v in (8.8, 17, 44)])   # 滴定參考值（%）
+
+def loo(ys, cs):
+    """留一法：回傳 (RMSE, 各點預測誤差)。反向校正 y = a + b*c，預測 (y - a)/b。"""
+    e = []
+    for i in range(len(cs)):
+        k = np.arange(len(cs)) != i
+        b, a = np.polyfit(cs[k], ys[k], 1)
+        e.append(float((ys[i] - a) / b - cs[i]))
+    return float(np.sqrt(np.mean(np.square(e)))), e
+
+def r2(ys, cs):
+    return float(np.corrcoef(cs, ys)[0, 1] ** 2)
+
+rmse_a, err_a = loo(y1, atago); rmse_t, err_t = loo(y1, titr)
+print('2258 nm 訊號 y（1 mm）：', np.round(y1, 4))
+print('滴定酸度（%）         ：', np.round(titr, 3))
+print('Atago 參考：LOO 誤差 = %s；RMSE = %.4f %%；R2 = %.4f' % (', '.join('%.4g' % v for v in err_a), rmse_a, r2(y1, atago)))
+print('滴定參考  ：LOO 誤差 = %s；RMSE = %.4f %%；R2 = %.4f' % (', '.join('%.4g' % v for v in err_t), rmse_t, r2(y1, titr)))
+print('同樣 4 條光譜，換成滴定參考值，RMSE 從 2.18 降到 1.15、R2 從 0.934 升到 0.990：')
+print('Atago 最大的誤差在 7.45 % 那瓶（+3.66）；誤差變小的原因可能在參考值（Atago 讀值比滴定粗），不一定是光譜壞了。')
+
+fig, ax = plt.subplots(figsize=(8, 4.6))
+xs = np.arange(4)
+ax.plot(xs - 0.08, err_a, 'o', color='steelblue', ms=9, label='Atago ref (RMSE %.2f)' % rmse_a)
+ax.plot(xs + 0.08, err_t, '^', color='darkorange', ms=9, label='titration ref (RMSE %.2f)' % rmse_t)
+ax.axhline(0, color='grey', ls=':')
+ax.set_xticks(xs); ax.set_xticklabels(CONC); ax.set_xlabel('bottle (Atago acid, %)'); ax.set_ylabel('LOO prediction error (%)')
+ax.set_title('1 mm, 2258 nm: LOO errors, Atago vs titration reference'); ax.legend(fontsize=8, loc='upper left')
+plt.tight_layout(); plt.show()
+
+chk4('titration ref: 11.39 % = 44 mL value', titr[3], 11.39)
+chk4('Atago LOO error, 0 %', err_a[0], 1.935)
+chk4('Atago LOO error, 3.32 %', err_a[1], -0.6849)
+chk4('Atago LOO error, 4.87 %', err_a[2], -1.199)
+chk4('Atago LOO error, 7.45 %', err_a[3], 3.66)
+chk4('Atago LOO RMSE', rmse_a, 2.182)
+chk4('titration LOO error, 0 %', err_t[0], -1.352)
+chk4('titration LOO error, 2.278 %', err_t[1], 0.8128)
+chk4('titration LOO error, 4.401 %', err_t[2], 0.285)
+chk4('titration LOO error, 11.39 %', err_t[3], -1.655)
+chk4('titration LOO RMSE', rmse_t, 1.152)
+chk4('R2 Atago', r2(y1, atago), 0.9342)
+chk4('R2 titration', r2(y1, titr), 0.9898)
+show_checks('第 4 節')
+''')
+
+md(r'''
+### 動手改改看（第 4 節）
+1. Atago 的 LOO RMSE 2.18 % 比 4 個校正點的酸度範圍（0–7.45 %）的 1/3 還大。這個校正在實用上夠用嗎？
+2. 兩種參考值用的是同一批光譜，為什麼結果差這麼多？這說明「誤差」可能來自哪裡？
+3. 為什麼 LOO 比單看 R² 更適合在點很少時評估預測能力？
+''')
+
+md(r'''
+## 5. 只拿掉一個點，R² 就會變：刪點不是修正
+
+依序拿掉 1 mm 的一個樣品，用剩下 3 點（Atago 參考）重算 R²。
+''')
+
+code(r'''
+drop_r2 = [r2(np.delete(y1, i), np.delete(atago, i)) for i in range(4)]
+print('全部 4 點：R2 = %.4f' % r2(y1, atago))
+for i in range(4):
+    print('拿掉 %.2f %%：剩下 3 點 R2 = %.4f（%s）' % (atago[i], drop_r2[i], '升高' if drop_r2[i] > r2(y1, atago) else '降低'))
+print('拿掉 7.45 %（殘差最大的點）R2 升到 0.9994。')
+print('結論：拿掉殘差最大的點，R2 幾乎一定會升高 —— 這只是因為 3 個點更容易排成一條線，不是資料變乾淨了。')
+print('n = 4 時只拿掉一點就剩 3 點、自由度更少；R2 變好看不是刪資料的理由。')
+
+chk4('drop-one R2: without 0 %', drop_r2[0], 0.9686)
+chk4('drop-one R2: without 3.32 %', drop_r2[1], 0.942)
+chk4('drop-one R2: without 4.87 %', drop_r2[2], 0.9701)
+chk4('drop-one R2: without 7.45 %', drop_r2[3], 0.9994)
+show_checks('第 5 節')
+''')
+
+md(r'''
+### 動手改改看（第 5 節）
+1. 為什麼 3 點的 R² 幾乎總是比 4 點高？（提示：2 點的 R² 一定是 1）
+2. 如果有人說「我把 7.45 % 那瓶刪掉後 R² 升到 0.9994，所以校正更好了」，你要怎麼回應？
+3. 四種拿法，R² 全都比 0.9342 高（拿掉 3.32 % 只升到 0.942，拿掉 7.45 % 升到 0.9994）。「升高」本身能告訴你哪個點該刪嗎？
+''')
+
+md(r'''
+## 6. 0.25 mm：修正還是刪掉？三種處理，三種分數
+
+0.25 mm 的 4.87 % 被水帶規則標記（比值 0.7723）。比較三種處理：**原始**、**把它的訊號除以水帶比值**（規則事先定好）、**直接刪掉**。
+''')
+
+code(r'''
+m025 = [row(0.25, c) for c in CONC]
+y25 = D[m025, j] * 1e3
+fix = y25.copy(); fix[2] = fix[2] / r25['ratio'][2]        # 規則事先定好：訊號除以它的水帶比值
+rm_orig = loo(y25, atago)[0]; rm_fix = loo(fix, atago)[0]; rm_drop = loo(np.delete(y25, 2), np.delete(atago, 2))[0]
+r2_orig = r2(y25, atago); r2_fix = r2(fix, atago); r2_drop = r2(np.delete(y25, 2), np.delete(atago, 2))
+print('0.25 mm 訊號 y        ：', np.round(y25, 4))
+print('4.87 % 除以比值 0.7723 後：', np.round(fix, 4))
+print('原始     ：LOO RMSE = %.4f %%；R2 = %.4f' % (rm_orig, r2_orig))
+print('除以比值 ：LOO RMSE = %.4f %%；R2 = %.4f' % (rm_fix, r2_fix))
+print('刪掉     ：LOO RMSE = %.4f %%；R2 = %.4f（只剩 3 點）' % (rm_drop, r2_drop))
+print('三種處理的 R2 都在 0.958-0.962，差不多；但 LOO RMSE 差很多：原始最小（1.08），修正後變差（1.53），刪掉最差（3.09）。')
+print('原始最好看不代表它對：標記只是「需要查原因」，不是「該刪」。這一瓶可能是裝樣量少，但我們沒有重測，不能下結論。')
+
+chk4('0.25 mm LOO RMSE, original', rm_orig, 1.076)
+chk4('0.25 mm LOO RMSE, divided by ratio', rm_fix, 1.527)
+chk4('0.25 mm LOO RMSE, dropped', rm_drop, 3.088)
+chk4('0.25 mm R2, original', r2_orig, 0.9589)
+chk4('0.25 mm R2, divided by ratio', r2_fix, 0.9578)
+chk4('0.25 mm R2, dropped', r2_drop, 0.9616)
+show_checks('第 6 節')
+''')
+
+md(r'''
+### 動手改改看（第 6 節）
+1. 三種處理的 R² 都差不多（0.958–0.962），為什麼 LOO RMSE 卻差到 3 倍？
+2. 「除以水帶比值」這個修正規則，是在看完 LOO 結果之前還是之後決定的？如果是之後決定的，會有什麼問題？
+3. 若這瓶真的是裝樣量不足，最正確的做法是什麼？（提示：重測）
+''')
+
+md(r'''
+## 7. 決策流程：遇到可疑光譜怎麼辦
+
+1. **先定規則**：看結果之前，把判斷標準（水帶 ±10 %、飽和門檻 1.5）寫下來。
+2. **同類相比**：只跟同光徑、同批的樣品比；不同光徑混在一起（如全部做 PCA）會被光徑主導。
+3. **找原因**：可疑的光譜先查裝樣、氣泡、光徑、飽和，不要先想刪或修。
+4. **重測三次**：同一瓶重新裝樣測 3 次，才分得出是裝樣誤差、儀器雜訊還是樣品本身。
+5. **紀錄兩種結果**：不管你刪不刪，報告「含」與「不含」可疑點的兩種結果，讓讀者自己判斷。
+''')
+
+md(r'''
+### 動手改改看（第 7 節）
+1. 對 0.25 mm / 4.87 % 與 0.5 mm / 3.32 % 這兩瓶，照上面五步，你會怎麼寫實驗紀錄？
+2. 為什麼「兩種結果都要紀錄」比「只留較好看的那一種」更有說服力？
+''')
+
+code(r'''
+print('全部自我驗證：%d / %d PASS' % (sum(c[0] for c in checks), len(checks)))
+for c in checks:
+    if not c[0]:
+        print('FAIL:', c[1], c[2], c[3])
+''')
+
+md(r'''
+### 總結
+1. 0.25 mm 純水兩次重複：RMS 0.0012 AU、最大 0.0045 AU；這是唯一的重複，量不到裝樣誤差。
+2. 水帶規則（事先固定 ±10 %）標出 0.25 mm / 4.87 %（比值 0.772）與 0.5 mm / 3.32 %（1.17）；1 mm 以上水帶飽和，不能用。
+3. 20 條混光徑的 PCA Q 殘差前三名是 2 mm 兩條與 0.25 mm / 4.87 %；0.5 mm / 3.32 % 只排第 8：自動離群偵測要先問相對於誰。
+4. 1 mm 的 2258 nm：Atago LOO RMSE 2.18、滴定 1.15；大殘差更像是參考值粗，不一定是光譜壞。
+5. Drop-one：拿掉最大殘差，R² 升到 0.9994；刪點讓 R² 變好看，不等於資料變好。
+6. 0.25 mm / 4.87 %：原始 / 除以比值 / 刪掉的 LOO RMSE = 1.08 / 1.53 / 3.09，R² 幾乎相同；標記不等於該刪。
+7. 流程：先定規則、同類相比、找原因、重測三次、紀錄兩種結果。
+''')
+
+
+def local_head():
+    return [
+        (MD, '> **本機 Jupyter 版**：請在 `teaching/exercises/` 目錄下開啟，資料讀自 `../data/spectra_long.csv`。\n'
+             '> 需要套件：numpy、pandas、matplotlib、scipy。Colab 請改開 `ch06_data_quality_colab.ipynb`。'),
+        (CODE, "DATA_PATH = '../data/spectra_long.csv'   # 本機版：讀上一層 data 資料夾"),
+    ]
+
+
+def colab_head():
+    with open(DATA_CSV, 'rb') as fh:
+        raw = fh.read()
+    b64 = base64.b64encode(gzip.compress(raw, 9, mtime=0)).decode('ascii')
+    wrapped = '\n'.join(b64[i:i + 100] for i in range(0, len(b64), 100))
+    embed = (
+        "# 資料內嵌：把 spectra_long.csv 以 gzip + base64 存成字串，執行時解出成檔案\n"
+        "import base64, gzip\n"
+        "DATA_B64 = \"\"\"\n" + wrapped + "\n\"\"\"\n"
+        "with open('spectra_long.csv', 'wb') as _f:\n"
+        "    _f.write(gzip.decompress(base64.b64decode(DATA_B64)))\n"
+        "DATA_PATH = 'spectra_long.csv'\n"
+        "print('已解出 spectra_long.csv：', len(gzip.decompress(base64.b64decode(DATA_B64))), 'bytes')"
+    )
+    upload = (
+        "# 【可選】想改用自己上傳的 spectra_long.csv，執行這一格並選檔；非 Colab 環境會自動略過。\n"
+        "try:\n"
+        "    from google.colab import files\n"
+        "    _up = files.upload()\n"
+        "    if 'spectra_long.csv' in _up:\n"
+        "        DATA_PATH = 'spectra_long.csv'\n"
+        "        print('已改用你上傳的 spectra_long.csv')\n"
+        "    else:\n"
+        "        print('沒有上傳 spectra_long.csv，繼續使用內嵌資料')\n"
+        "except Exception as _e:\n"
+        "    print('略過上傳（非 Colab 環境或未選檔）：', type(_e).__name__)"
+    )
+    return [
+        (MD, '> **Google Colab 版**\n>\n'
+             '> 1. 開啟 [colab.research.google.com](https://colab.research.google.com)。\n'
+             '> 2. 選單「**檔案 → 上傳筆記本**」，選擇 `ch06_data_quality_colab.ipynb`。\n'
+             '> 3. 依序執行每一格。\n>\n'
+             '> 資料已**內嵌**在筆記本中，下一格會自動解出 `spectra_long.csv`。Colab 已內建所需套件。'),
+        (CODE, embed),
+        (MD, '若想改用自己上傳的檔案，可執行下面這一格（可選）。'),
+        (CODE, upload),
+    ]
+
+
+def build(name, head):
+    nb = nbf.v4.new_notebook()
+    cells = [COMMON[0]] + head + COMMON[1:]
+    nb['cells'] = [nbf.v4.new_markdown_cell(s) if k == MD else nbf.v4.new_code_cell(s) for k, s in cells]
+    nb['metadata'] = {'kernelspec': {'display_name': 'Python 3', 'language': 'python', 'name': 'python3'},
+                      'language_info': {'name': 'python'}}
+    path = os.path.join(HERE, name)
+    with open(path, 'w', encoding='utf-8') as fh:
+        nbf.write(nb, fh)
+    print('wrote', path, '(%d cells)' % len(cells))
+
+
+if __name__ == '__main__':
+    build('ch06_data_quality.ipynb', local_head())
+    build('ch06_data_quality_colab.ipynb', colab_head())

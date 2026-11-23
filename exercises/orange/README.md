@@ -1,4 +1,4 @@
-# Orange 練習（第 1–5 章）
+# Orange 練習（第 1–6 章）
 
 用 [Orange Data Mining](https://orangedatamining.com/) 拖拉 widget 完成與 R / Python 練習相同的分析，不必寫程式。每章一個工作流程檔（`.ows`）加一份逐步講義。
 
@@ -22,6 +22,7 @@
 | 3 | [ch03_orange_guide.md](ch03_orange_guide.md) | `ch03_wavelength_pitfall.ows`（10 個 widget） | `data/spectra_wide_orange.csv` | 88 個可用波長中挑 R² 最高的：在交叉驗證外挑（Rank）vs 在交叉驗證內挑（Preprocess → Preprocessor） | 挑到 1862.4 nm；LOO RMSE 外 0.427 vs 內 2.578 |
 | 4 | [ch04_orange_guide.md](ch04_orange_guide.md) | `ch04_pca_pls.ows`（9 個 widget） | `data/spectra_wide_orange.csv` | PCA 看 PC1 抓到光徑；1 mm 二階導數 PLS（1 成分、不縮放）留一法 | PC1 0.917；PLS RMSECV 0.317 |
 | 5 | [ch05_orange_guide.md](ch05_orange_guide.md) | `ch05_prediction.ows`（12 個 widget） | `data/spectra_wide_orange.csv`、`data/unknown_2258_orange.csv` | 預測未知樣品（**只有點預測**）：藏起 4.87 % 瓶用 3 瓶預測；4 瓶校正預測 y0 = 4.20 × 10⁻³。區間（Fieller）Orange 做不到，請到 R / Python | 3.669（講義 3.671，真值 4.87）；4.891（講義 4.960） |
+| 6 | [ch06_orange_guide.md](ch06_orange_guide.md) | `ch06_data_quality.ows`（20 個 widget） | `data/spectra_wide_orange.csv` | 資料品質與離群值：水帶高度 ÷ 同光徑中位數（±10 % 旗標）、0.25 mm 光譜目視、Outliers / PCA 的陷阱（光徑混在一起）。**沒有 Q 殘差**；積分是梯形法（與講義比值最多差 0.0003） | 旗標 0.25 mm 4.87 % 瓶（0.7725，講義 0.7723）與 0.5 mm 3.32 % 瓶（1.1701，講義 1.17）；Outliers 預設（LOF）抓 **0** 條 |
 
 截圖都在 `img/`（`chNN_orange_*.png`）。
 
@@ -40,7 +41,8 @@
     ├── ch02_references.ows
     ├── ch03_wavelength_pitfall.ows
     ├── ch04_pca_pls.ows
-    └── ch05_prediction.ows
+    ├── ch05_prediction.ows
+    └── ch06_data_quality.ows
 ```
 
 如果 **File** widget 顯示紅色錯誤（找不到檔案），雙擊它重新選資料檔即可。在 Orange 裡**另存**後，資料路徑會變成你電腦上的絕對路徑；要發給別人請用原始的 `.ows`。
@@ -59,7 +61,7 @@
 ```
 python tools/nir-pathlength/make_orange_refs.py          # 產生 data/spectra_1mm_refs_orange.csv（第 2 章）
 python tools/nir-pathlength/make_orange_unknown.py       # 產生 data/unknown_2258_orange.csv（第 5 章）
-python exercises/orange/tools/build_ch01_ows.py          # 產生 .ows（ch01 – ch05 同理）
+python exercises/orange/tools/build_ch01_ows.py          # 產生 .ows（ch01 – ch06 同理）
 python exercises/orange/tools/verify_ch01_ows.py --img exercises/orange/img   # 重新載入、印出數字、存截圖
 ```
 

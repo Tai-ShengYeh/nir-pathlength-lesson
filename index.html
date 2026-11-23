@@ -133,6 +133,9 @@ const CHAPTERS = [
   { id: 'ch05', no: 5, title: '預測未知樣品與不確定度', mins: 8, tags: ['預測區間', 'Fieller', '報告格式'],
     desc: '校正線做好了，量到一瓶新的醋，答案要怎麼寫？先檢查斜率，再算精確的預測區間，看清楚 4 個校正點的極限與改善方法。',
     quiz: 3, checks: 39 },
+  { id: 'ch06', no: 6, title: '資料品質與離群值', mins: 8, tags: ['離群值', '水帶檢查', '重測與紀錄'],
+    desc: '哪一筆量錯了？先用物理定好規則，同光徑相比；大殘差不一定是壞光譜，也不能因為分數變好就刪資料。',
+    quiz: 3, checks: 48 },
 ];
 const kb = n => n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB';
 const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => v != null && (k === 'text' ? e.textContent = v : e.setAttribute(k, v))); kids.forEach(k => k && e.append(k)); return e; };

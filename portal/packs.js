@@ -45,8 +45,17 @@ const PACKS = {
   "ipynb": "exercises/ch05_prediction_uncertainty.ipynb",
   "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch05_prediction_uncertainty_colab.ipynb"
  },
+ "ch06": {
+  "zip": "packs/nir_ch06_data_quality.zip",
+  "size": 457755,
+  "ows": "exercises/orange/ch06_data_quality.ows",
+  "guide": "exercises/orange/ch06_orange_guide.md",
+  "r": "exercises/ch06_data_quality.R",
+  "ipynb": "exercises/ch06_data_quality.ipynb",
+  "colab": "https://colab.research.google.com/github/Tai-ShengYeh/nir-pathlength-lesson/blob/main/exercises/ch06_data_quality_colab.ipynb"
+ },
  "all": {
   "zip": "packs/nir_all_chapters.zip",
-  "size": 3046604
+  "size": 3465905
  }
 };

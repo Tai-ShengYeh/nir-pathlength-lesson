@@ -12,6 +12,7 @@ CH = [  # (編號, 檔名代稱, 標題, 練習檔前綴)
     ('03', 'wavelength_pitfall', '波長挑選的陷阱', 'exercises/ch03_wavelength_pitfall'),
     ('04', 'pca_pls', 'PCA 與 PLS', 'exercises/ch04_pca_pls'),
     ('05', 'prediction', '預測未知樣品與不確定度', 'exercises/ch05_prediction_uncertainty'),
+    ('06', 'data_quality', '資料品質與離群值', 'exercises/ch06_data_quality'),
 ]
 
 def files_for(n, prefix):
