@@ -59,7 +59,7 @@ const BEATS = [
       nText(p, RF8.atago_day_diff_pct[i].toFixed(0) + ' %', 1400, y, m('day') + i * .3, { size: 30, anchor: 'middle', fill: BADC, weight: 700 });
     });
     nText(p, '滴定 ÷ Atago 11/03：' + RF8.ratio_titr_atago1103.map(f2).join('、') + '　不是固定倍數（第 2 章）', 800, 560, m('ratio'), { size: 26, anchor: 'middle' });
-    nText(p, 'Atago 讀值來自 PAL-Easy ACID（導電度式，不是折射計）：弱酸的導電度不跟濃度成正比', 800, 605, m('ratio') + 1.5, { size: 22, anchor: 'middle', fill: COL.dim });
+    nText(p, 'Atago 讀值來自導電度式酸度計（不是折射計）；弱酸導電度不跟濃度成正比，可能是高濃度讀低的原因', 800, 605, m('ratio') + 1.5, { size: 22, anchor: 'middle', fill: COL.dim });
     nText(p, '這一章問：滴定本身有多準？', 800, 700, m('q'), { size: 34, anchor: 'middle', fill: GOLD, weight: 700 });
   }],
 

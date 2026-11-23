@@ -65,7 +65,7 @@ const PACKS = {
  },
  "ch08": {
   "zip": "packs/nir_ch08_reference_methods.zip",
-  "size": 370369,
+  "size": 370437,
   "ows": "exercises/orange/ch08_references.ows",
   "guide": "exercises/orange/ch08_orange_guide.md",
   "r": "exercises/ch08_reference_methods.R",
@@ -74,6 +74,6 @@ const PACKS = {
  },
  "all": {
   "zip": "packs/nir_all_chapters.zip",
-  "size": 4163468
+  "size": 4163536
  }
 };
