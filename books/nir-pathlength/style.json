@@ -75,6 +75,11 @@
       "chapter": "ch06",
       "date": "2026-11-24",
       "why": "user approved after one fix (verb 量 read liáng via {{量|涼}}): water-band rule fixed from physics before looking, like-with-like comparison, PCA-Q trap, large residual traced to the reference, no deleting by score; Orange Outliers widget shown to depend on settings"
+    },
+    {
+      "chapter": "ch07",
+      "date": "2026-11-24",
+      "why": "user approved as delivered: pilot before main run (chi-square SD factors), replicate at the fill/dilution level not the scan, 8 equally spaced levels for a linearity check, blocked randomised order, level means for shared preparation error, blind commercial vinegars, class grouping with a common control; run sheet + record sheet deliverables"
     }
   ]
 }
