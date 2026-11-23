@@ -70,6 +70,11 @@
       "chapter": "ch05",
       "date": "2026-11-23",
       "why": "user approved as delivered: slope check (g) before Fieller intervals, hidden-bottle and hypothetical unknown, residual-based limits named apart from ch01 LOD, illustrative 8x3 design, report format; Orange point prediction only"
+    },
+    {
+      "chapter": "ch06",
+      "date": "2026-11-24",
+      "why": "user approved after one fix (verb 量 read liáng via {{量|涼}}): water-band rule fixed from physics before looking, like-with-like comparison, PCA-Q trap, large residual traced to the reference, no deleting by score; Orange Outliers widget shown to depend on settings"
     }
   ]
 }
