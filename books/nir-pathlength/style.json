@@ -80,6 +80,11 @@
       "chapter": "ch07",
       "date": "2026-11-24",
       "why": "user approved as delivered: pilot before main run (chi-square SD factors), replicate at the fill/dilution level not the scan, 8 equally spaced levels for a linearity check, blocked randomised order, level means for shared preparation error, blind commercial vinegars, class grouping with a common control; run sheet + record sheet deliverables"
+    },
+    {
+      "chapter": "ch08",
+      "date": "2026-11-24",
+      "why": "user approved as delivered: titration formula unpacked, illustrative Class-A budget, reference gaps in mL vs reading uncertainty (bottle 1 most suspect, not proven wrong), proportional factor error invisible to R2, KHP standardization, dilution design, titration SOP + record sheet; Atago = conductivity meter (exact model still to confirm)"
     }
   ]
 }
