@@ -84,7 +84,12 @@
     {
       "chapter": "ch08",
       "date": "2026-11-24",
-      "why": "user approved as delivered: titration formula unpacked, illustrative Class-A budget, reference gaps in mL vs reading uncertainty (bottle 1 most suspect, not proven wrong), proportional factor error invisible to R2, KHP standardization, dilution design, titration SOP + record sheet; Atago = conductivity meter (exact model still to confirm)"
+      "why": "user approved as delivered: titration formula unpacked, illustrative Class-A budget, reference gaps in mL vs reading uncertainty (bottle 1 most suspect, not proven wrong), proportional factor error invisible to R2, KHP standardization, dilution design, titration SOP + record sheet; Atago = PAL-Easy ACID 181 conductivity meter; PAL-30S refractometer (11/17) added as a fifth reference, best agreement with NIR but consistency not accuracy"
+    },
+    {
+      "chapter": "ch09",
+      "date": "2026-11-24",
+      "why": "user approved as delivered: validation starts from purpose and target (+/-0.5 % illustrative), eight-item scorecard with no green item, consistency kept apart from selectivity/accuracy, PLS RMSECV below the Atago day SD read as overfitting, two LOD methods both preliminary, current vs planned interval width, can-say/cannot-say report; scorecard CSV + report template deliverables"
     }
   ]
 }
